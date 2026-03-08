@@ -932,14 +932,16 @@ function saveEditMeta(id, team) {
   // Adjust opponent name to reflect home/away
   const teamData = team === 'b' ? g.team1 : g.team2;
   if (opp) {
+    // Strip any Ajax prefix/suffix however formatted, and any leading "vs " to get clean opponent name
+    const clean = opp
+      .replace(/^vs\.?\s*/i, '')
+      .replace(/^ajax\s*2?\s*[-–]\s*/i, '')
+      .replace(/\s*[-–]\s*ajax\s*2?$/i, '')
+      .trim();
     if (ha === 'home') {
-      // Make sure Ajax is first
-      const clean = opp.replace(/^ajax\s*[-–]\s*/i, '').replace(/\s*[-–]\s*ajax\s*2?$/i, '').trim();
       const suffix = (team === 'c') ? ' 2' : '';
       teamData.opponent = 'Ajax' + suffix + ' - ' + clean;
     } else {
-      // Away - opponent is first
-      const clean = opp.replace(/^ajax\s*[-–]\s*/i, '').replace(/\s*[-–]\s*ajax\s*2?$/i, '').trim();
       teamData.opponent = clean;
     }
   }
