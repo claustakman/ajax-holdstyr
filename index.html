@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ajax U11 – Holdstyr</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap');
+:root {
+  --ajax-red: #CC1033;
+  --ajax-red-dark: #8B0020;
+  --ajax-red-light: #E8193D;
+  --gold: #F5A623;
+  --green: #27AE60;
+  --purple: #8E44AD;
+  --bg: #0A0A0F;
+  --surface: #111118;
+  --card: #16161F;
+  --card2: #1C1C28;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.12);
+  --text: #F0F0F8;
+  --muted: #7A7A96;
+  --accent: #CC1033;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Barlow', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 15px; }
+
+/* HEADER */
+header {
+  background: linear-gradient(135deg, var(--ajax-red-dark) 0%, #6B0018 40%, #0A0A0F 100%);
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 2px solid var(--ajax-red);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: 64px;
+  box-shadow: 0 2px 20px rgba(204,16,51,0.3), 0 4px 40px rgba(0,0,0,0.6);
+}
+.logo-wrap {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  box-shadow: 0 0 12px rgba(204,16,51,0.5);
+  border: 2px solid rgba(255,255,255,0.2);
+}
+.logo-wrap img { width: 38px; height: 38px; object-fit: contain; }
+header h1 { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 22px; letter-spacing: 1.5px; text-transform: uppercase; line-height: 1; }
+header h1 span { color: white; }
+header h1 em { color: rgba(255,255,255,0.5); font-style: normal; font-weight: 400; font-size: 13px; display: block; letter-spacing: 3px; margin-top: 1px; }
+.header-stripe { width: 3px; height: 36px; background: var(--ajax-red); border-radius: 2px; }
+
+/* NAV */
+nav { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+nav::-webkit-scrollbar { display: none; }
+nav button { flex-shrink: 0; background: none; border: none; color: var(--muted); padding: 13px 18px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 1px; cursor: pointer; border-bottom: 3px solid transparent; transition: all .2s; text-transform: uppercase; }
+nav button:hover { color: var(--text); }
+nav button.active { color: var(--ajax-red); border-bottom-color: var(--ajax-red); }
+
+main { padding: 16px; max-width: 860px; margin: 0 auto; }
+.page { display: none; } .page.active { display: block; }
+
+/* CARDS */
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+.card-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 14px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+.page-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 22px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; color: var(--text); }
+
+/* BUTTONS */
+.btn { padding: 9px 18px; border: none; border-radius: 8px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 14px; letter-spacing: .5px; cursor: pointer; text-transform: uppercase; transition: all .2s; }
+.btn-ajax { background: var(--ajax-red); color: white; }
+.btn-ajax:hover { background: var(--ajax-red-light); }
+.btn-green { background: var(--green); color: white; }
+.btn-green:hover { filter: brightness(1.1); }
+.btn-ghost { background: rgba(255,255,255,.05); color: var(--text); border: 1px solid var(--border2); }
+.btn-ghost:hover { background: rgba(255,255,255,.1); }
+.btn-gold { background: var(--gold); color: #111; }
+.btn-red { background: #8B0020; color: white; }
+.btn-red:hover { background: var(--ajax-red); }
+.btn-sm { padding: 5px 12px; font-size: 12px; }
+.btn-x { background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer; padding: 4px 8px; border-radius: 6px; transition: all .2s; }
+.btn-x:hover { color: var(--text); background: rgba(255,255,255,.08); }
+
+/* FORM */
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 5px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; }
+.field input, .field select, .field textarea {
+  width: 100%; background: rgba(255,255,255,.04); border: 1px solid var(--border2);
+  border-radius: 8px; color: var(--text); padding: 9px 12px;
+  font-family: 'Barlow', sans-serif; font-size: 14px; outline: none; transition: border-color .2s;
+}
+.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--ajax-red); }
+.field select option { background: var(--card); }
+
+/* GAME CARDS */
+.game-card { background: var(--card2); border: 1px solid var(--border); border-radius: 10px; padding: 13px 14px; margin-bottom: 8px; cursor: pointer; transition: all .2s; border-left: 4px solid transparent; }
+.game-card:hover { border-left-color: var(--ajax-red); transform: translateX(2px); background: #202030; }
+.game-card.planned { border-left-color: rgba(245,166,35,.6); }
+.game-card.done { border-left-color: rgba(39,174,96,.6); }
+.game-date { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 12px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .5px; }
+.game-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 20px; color: var(--text); line-height: 1.1; }
+.game-meta { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; align-items: center; }
+.team-badge-b { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; background: var(--ajax-red); color: white; font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 14px; border-radius: 6px; flex-shrink: 0; }
+.team-badge-c { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; background: #1A4A7A; color: #6DB6FF; font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 14px; border-radius: 6px; flex-shrink: 0; border: 1px solid #2A6ABA; }
+
+/* BADGES */
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.badge-b1 { background: rgba(204,16,51,.2); color: #FF6080; border: 1px solid rgba(204,16,51,.35); }
+.badge-b2 { background: rgba(26,74,122,.4); color: #6DB6FF; border: 1px solid rgba(41,128,185,.35); }
+.badge-warn { background: rgba(245,166,35,.15); color: var(--gold); border: 1px solid rgba(245,166,35,.3); }
+.badge-muted { background: rgba(255,255,255,.05); color: var(--muted); border: 1px solid var(--border); }
+.badge-ok { background: rgba(39,174,96,.15); color: #2ECC71; border: 1px solid rgba(39,174,96,.3); }
+.badge-star { background: rgba(255,215,0,.12); color: #FFD700; border: 1px solid rgba(255,215,0,.3); }
+
+/* TABS */
+.tab-row { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+.tab-btn { padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border2); background: none; color: var(--muted); font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; cursor: pointer; transition: all .2s; }
+.tab-btn.active { background: var(--ajax-red); color: white; border-color: var(--ajax-red); }
+
+/* MODAL */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.8); z-index: 200; align-items: flex-start; justify-content: center; padding: 16px; overflow-y: auto; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--card); border: 1px solid var(--border2); border-radius: 16px; padding: 20px; width: 100%; max-width: 600px; margin: auto; box-shadow: 0 20px 60px rgba(0,0,0,.7); }
+.modal-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 22px; text-transform: uppercase; margin-bottom: 4px; color: var(--text); letter-spacing: .5px; }
+
+.flex-between { display: flex; justify-content: space-between; align-items: center; }
+.section-label { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin: 14px 0 7px; border-bottom: 1px solid var(--border); padding-bottom: 5px; }
+
+/* PILLS */
+.player-pill { display: inline-flex; align-items: center; gap: 5px; background: rgba(255,255,255,.05); border: 1px solid var(--border2); border-radius: 20px; padding: 3px 10px; font-size: 12px; margin: 2px; }
+.pill-num { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 13px; color: var(--ajax-red); }
+
+/* INPUTS */
+.inline-input { background: rgba(255,255,255,.05); border: 1px solid var(--border2); border-radius: 8px; color: var(--text); padding: 8px 12px; font-family: 'Barlow', sans-serif; font-size: 14px; outline: none; width: 100%; transition: border-color .2s; }
+.inline-input:focus { border-color: var(--ajax-red); }
+.motm-select { width: 100%; background: rgba(255,255,255,.05); border: 1px solid var(--border2); border-radius: 8px; color: var(--text); padding: 9px 12px; font-family: 'Barlow', sans-serif; font-size: 14px; outline: none; cursor: pointer; }
+.motm-select:focus { border-color: var(--gold); }
+.motm-select option { background: var(--card); }
+
+/* PLAYER PICKER */
+.player-picker { display: flex; flex-direction: column; gap: 4px; max-height: 380px; overflow-y: auto; border: 1px solid var(--border); border-radius: 10px; padding: 6px; background: var(--surface); }
+.player-picker::-webkit-scrollbar { width: 4px; }
+.player-picker::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+.picker-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; cursor: pointer; transition: all .15s; border: 1px solid transparent; }
+.picker-row:hover { background: rgba(255,255,255,.04); }
+.picker-row.sel { background: rgba(204,16,51,.1); border-color: rgba(204,16,51,.3); }
+.picker-check { width: 22px; height: 22px; border-radius: 6px; border: 2px solid var(--border2); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: white; flex-shrink: 0; transition: all .15s; }
+.picker-row.sel .picker-check { background: var(--ajax-red); border-color: var(--ajax-red); }
+.picker-name { flex: 1; min-width: 0; font-size: 13px; line-height: 1.3; }
+.picker-num { width: 48px; background: rgba(255,255,255,.04); border: 1px solid var(--border); border-radius: 6px; color: var(--gold); padding: 4px 6px; font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 700; text-align: center; outline: none; flex-shrink: 0; transition: all .15s; }
+.picker-num:focus { border-color: var(--gold); }
+.picker-num:disabled { opacity: 0.3; }
+.picker-summary { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 13px; color: var(--ajax-red); margin-bottom: 6px; }
+
+/* CONFIRM ROWS */
+.confirm-player-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); gap: 8px; }
+.confirm-name { font-size: 13px; flex: 1; min-width: 0; }
+.confirm-name .cn-full { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.confirm-name .cn-num { font-size: 11px; color: var(--gold); font-family: 'Barlow Condensed', sans-serif; font-weight: 700; }
+.confirm-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.confirm-btn { padding: 4px 9px; border-radius: 6px; border: 1px solid transparent; font-size: 11px; font-weight: 700; font-family: 'Barlow Condensed', sans-serif; text-transform: uppercase; cursor: pointer; transition: all .2s; white-space: nowrap; }
+.cb-played { background: rgba(39,174,96,.12); color: #2ECC71; border-color: rgba(39,174,96,.25); } .cb-played.sel { background: var(--green); color: white; }
+.cb-cancel { background: rgba(204,16,51,.12); color: #FF6080; border-color: rgba(204,16,51,.25); } .cb-cancel.sel { background: var(--ajax-red); color: white; }
+.cb-benched { background: rgba(142,68,173,.12); color: #BB8FCE; border-color: rgba(142,68,173,.25); } .cb-benched.sel { background: var(--purple); color: white; }
+
+/* FOCUS / REVIEW */
+.focus-item { display: flex; gap: 8px; align-items: center; margin-bottom: 7px; }
+.focus-num { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 20px; color: var(--gold); width: 24px; text-align: center; flex-shrink: 0; }
+.review-block { background: rgba(255,255,255,.03); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+.review-block textarea { background: transparent; border: none; color: var(--text); font-family: 'Barlow', sans-serif; font-size: 13px; outline: none; width: 100%; resize: vertical; min-height: 60px; padding: 0; }
+.review-block textarea::placeholder { color: var(--muted); }
+
+/* COPY BTN */
+.copy-btn { font-size: 11px; padding: 3px 10px; border-radius: 6px; border: 1px solid rgba(245,166,35,.35); background: rgba(245,166,35,.08); color: var(--gold); cursor: pointer; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; text-transform: uppercase; transition: all .2s; }
+.copy-btn:hover { background: rgba(245,166,35,.2); }
+
+/* STATS */
+.stats-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.stats-table th { text-align: left; padding: 8px 10px; font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); border-bottom: 1px solid var(--border2); }
+.stats-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); }
+.stats-table tr:hover td { background: rgba(255,255,255,.02); }
+.num { text-align: right; font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 700; }
+.stat-bar { height: 4px; background: rgba(255,255,255,.07); border-radius: 2px; margin-top: 4px; overflow: hidden; }
+.stat-fill { height: 100%; border-radius: 2px; background: var(--ajax-red); }
+
+/* SEARCH */
+.search-box { width: 100%; background: rgba(255,255,255,.04); border: 1px solid var(--border2); border-radius: 8px; color: var(--text); padding: 9px 12px 9px 36px; font-family: 'Barlow', sans-serif; font-size: 14px; outline: none; margin-bottom: 12px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%237A7A96' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='M21 21l-4.35-4.35'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: 10px center; }
+.search-box:focus { border-color: var(--ajax-red); }
+
+/* TOAST */
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--green); color: white; padding: 10px 20px; border-radius: 8px; font-weight: 600; font-size: 14px; z-index: 999; transition: transform .3s; pointer-events: none; }
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+/* EMPTY STATE */
+.empty-state { text-align: center; padding: 40px 20px; color: var(--muted); }
+.empty-state .icon { font-size: 40px; margin-bottom: 10px; }
+
+/* Filter bar */
+.filter-bar { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px; }
+.filter-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.filter-select { background: rgba(255,255,255,.05); border: 1px solid var(--border2); border-radius: 8px; color: var(--text); padding: 7px 10px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 13px; outline: none; cursor: pointer; min-width: 130px; }
+.filter-select:focus { border-color: var(--ajax-red); }
+.filter-select option { background: var(--card); }
+.filter-input { background: rgba(255,255,255,.05); border: 1px solid var(--border2); border-radius: 8px; color: var(--text); padding: 7px 10px; font-family: 'Barlow', sans-serif; font-size: 13px; outline: none; flex: 1; min-width: 120px; }
+.filter-input:focus { border-color: var(--ajax-red); }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo-wrap">
+    <img src="https://www.holdsport.dk/media/W1siZiIsIjIwMjUvMDYvMjkvdHF3MmlwZWQ1NV9hamF4bG9nby5wbmciXSxbInAiLCJ0aHVtYiIsIjM1MHgzNTAiXV0=?sha=b1d82848914ceb40" alt="Ajax" onerror="this.parentNode.innerHTML='🤾'">
+  </div>
+  <div class="header-stripe"></div>
+  <div>
+    <h1><span>Ajax U11</span> <em>HOLDSTYR · SÆSON 2025/26</em></h1>
+  </div>
+</header>
+<nav>
+  <button class="active" onclick="showPage('kampe')">🏆 Kampe</button>
+  <button onclick="showPage('ny-kamp')">➕ Ny kamp</button>
+  <button onclick="showPage('spillere')">👥 Spillere</button>
+  <button onclick="showPage('statistik')">📊 Statistik</button>
+  <button onclick="showPage('eksport')">📤 Eksport</button>
+</nav>
+<main>
+
+<!-- KAMPE -->
+<div id="page-kampe" class="page active">
+  <div class="flex-between" style="margin-bottom:12px">
+    <div class="page-title">Kampe</div>
+  </div>
+  <!-- Filter/Sort bar -->
+  <div class="filter-bar">
+    <div class="filter-row">
+      <select id="filter-team" onchange="renderGames()" class="filter-select">
+        <option value="all">Alle hold</option>
+        <option value="b">Hold B</option>
+        <option value="c">Hold C</option>
+      </select>
+      <select id="sort-games" onchange="renderGames()" class="filter-select">
+        <option value="date-desc">Dato ↓ (nyeste)</option>
+        <option value="date-asc">Dato ↑ (ældste)</option>
+        <option value="opp-asc">Modstander A–Z</option>
+      </select>
+    </div>
+    <div class="filter-row">
+      <input type="text" id="filter-opp" class="filter-input" placeholder="🔍 Søg modstander..." oninput="renderGames()">
+    </div>
+    <div class="filter-row">
+      <label style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap">Fra dato</label>
+      <input type="date" id="filter-date-from" class="filter-input" onchange="renderGames()">
+      <label style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap">Til dato</label>
+      <input type="date" id="filter-date-to" class="filter-input" onchange="renderGames()">
+      <button class="btn btn-ghost btn-sm" onclick="clearFilters()">✕ Ryd</button>
+    </div>
+  </div>
+  <div id="games-list"></div>
+</div>
+
+<!-- NY KAMP -->
+<div id="page-ny-kamp" class="page">
+  <div class="page-title">Ny kamp</div>
+  <div class="card">
+    <div class="card-title">Kampinfo</div>
+    <div class="field"><label>Dato</label><input type="date" id="nk-date"></div>
+    <div class="field"><label>Hold</label>
+      <select id="nk-team" onchange="buildNewGameForm()" style="width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:9px 12px;font-family:'Barlow',sans-serif;font-size:14px;outline:none">
+        <option value="b">Hold B</option>
+        <option value="c">Hold C</option>
+      </select>
+    </div>
+    <div class="field"><label>Modstander</label><input type="text" id="nk-opp" placeholder="fx HIK3"></div>
+    <div class="field"><label>Bemærkninger</label><textarea id="nk-notes" rows="2" placeholder="Valgfri noter..."></textarea></div>
+  </div>
+  <div class="card">
+    <div class="flex-between" style="margin-bottom:10px">
+      <div class="card-title" style="margin-bottom:0">Vælg spillere</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="picker-summary" id="nk-summary">0 valgt</span>
+        <button class="copy-btn" onclick="loadLastGameForNew()">📋 Kopi fra sidste kamp</button>
+      </div>
+    </div>
+    <div id="nk-player-grid"></div>
+  </div>
+  <button class="btn btn-ajax" style="width:100%;padding:12px;font-size:16px" onclick="createGame()">✅ Opret kamp</button>
+</div>
+
+<!-- SPILLERE -->
+<div id="page-spillere" class="page">
+  <div class="flex-between" style="margin-bottom:14px">
+    <div class="page-title">Spillere</div>
+    <button class="btn btn-ajax btn-sm" onclick="openAddPlayer()">+ Tilføj</button>
+  </div>
+  <input class="search-box" id="player-search" type="text" placeholder="Søg spiller..." oninput="renderPlayers()">
+  <div class="tab-row">
+    <button class="tab-btn active" onclick="setPlayerTab('active',this)">Aktive</button>
+    <button class="tab-btn" onclick="setPlayerTab('all',this)">Alle</button>
+    <button class="tab-btn" onclick="setPlayerTab('inactive',this)">Stoppet</button>
+  </div>
+  <div id="players-list"></div>
+</div>
+
+<!-- STATISTIK -->
+<div id="page-statistik" class="page">
+  <div class="page-title">Statistik</div>
+  <div class="tab-row">
+    <button class="tab-btn active" onclick="setStatTab('spilletid',this)">Spilletid</button>
+    <button class="tab-btn" onclick="setStatTab('afbud',this)">Afbud</button>
+    <button class="tab-btn" onclick="setStatTab('oversidder',this)">Oversidder</button>
+    <button class="tab-btn" onclick="setStatTab('motm',this)">⭐ Kampens Spiller</button>
+  </div>
+  <div id="stat-content"></div>
+</div>
+
+<!-- EKSPORT -->
+<div id="page-eksport" class="page">
+  <div class="page-title">Eksport &amp; Backup</div>
+  <div class="card">
+    <div class="card-title">CSV Eksport</div>
+    <button class="btn btn-green" style="width:100%;margin-bottom:8px" onclick="exportCSV('games')">📋 Kampoversigt (CSV)</button>
+    <button class="btn btn-green" style="width:100%" onclick="exportCSV('players')">👥 Spillerstatistik (CSV)</button>
+  </div>
+  <div class="card">
+    <div class="card-title">Gem &amp; Gendan</div>
+    <button class="btn btn-gold" style="width:100%;margin-bottom:8px" onclick="exportJSON()">⬇️ Download backup (JSON)</button>
+    <button class="btn btn-ghost" style="width:100%;margin-bottom:8px" onclick="document.getElementById('import-file').click()">⬆️ Indlæs backup (JSON)</button>
+    <input type="file" id="import-file" accept=".json" style="display:none" onchange="importJSON(this)">
+    <button class="btn btn-red btn-sm" style="width:100%" onclick="resetToSeed()">🔄 Nulstil til original import</button>
+    <p style="font-size:11px;color:var(--muted);margin-top:10px">💡 Download backup og send til dig selv for at synkronisere mellem enheder.</p>
+  </div>
+</div>
+</main>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="game-modal"><div class="modal" id="game-modal-content"></div></div>
+<div class="modal-overlay" id="player-modal">
+  <div class="modal">
+    <div class="flex-between" style="margin-bottom:14px">
+      <div class="modal-title">Tilføj spiller</div>
+      <button class="btn-x" onclick="closeModal('player-modal')">✕</button>
+    </div>
+    <div class="field"><label>Kaldenavn</label><input type="text" id="pm-nick" placeholder="fx Maya S"></div>
+    <div class="field"><label>Fulde navn</label><input type="text" id="pm-full" placeholder="fx Maya Ndingoli Ki Sjøgren"></div>
+    <div class="field"><label>Fødselsår</label><input type="number" id="pm-year" placeholder="fx 2015" min="2010" max="2020"></div>
+    <div class="field"><label>Standardnummer</label><input type="number" id="pm-num" placeholder="fx 7" min="1" max="99"></div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal('player-modal')">Annuller</button>
+      <button class="btn btn-ajax" style="flex:1" onclick="saveNewPlayer()">Gem</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const SEED = {"players":[{"nickname":"Aleksandra","fullName":"Aleksandra Popovic","birthYear":2015,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Anastasia","fullName":"Anastasia Hernandez Vujcic","birthYear":2015,"active":false,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Barbara","fullName":"Barbara Christensen","birthYear":2014,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Bella","fullName":"Bella Thygesen","birthYear":2015,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Ela","fullName":"Ela Zulic","birthYear":2014,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Ella","fullName":"Ella Ditlev Graversgaard","birthYear":2015,"active":false,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Emmy","fullName":"Emmy Enemark Christiansen","birthYear":2015,"active":false,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Esther","fullName":"Esther Ivic Jensen","birthYear":2015,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Gry","fullName":"Gry Myrup","birthYear":2014,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Hadya","fullName":"Hadya Akhgar","birthYear":2015,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Henny","fullName":"Henny Kinch","birthYear":2015,"active":false,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Ingeborg","fullName":"Ingeborg Ponyo La Cour-Mosholt","birthYear":2014,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Lana","fullName":"Lana Ljubez","birthYear":2015,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Laura","fullName":"Laura Murati","birthYear":2015,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Marie","fullName":"Marie Hindsgaul Stobbe","birthYear":2015,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Marley","fullName":"Marley Frost","birthYear":2015,"active":false,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Maya H","fullName":"Maya Helgren","birthYear":2014,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Maya S","fullName":"Maya Nding''''oli Ki Sjøgren","birthYear":2015,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Miabella","fullName":"Miabella Grage","birthYear":2015,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Nor","fullName":"Nor Ahrengot","birthYear":2016,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Philippa","fullName":"Philippa-Isabelle Er Jensen","birthYear":2014,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Rosa","fullName":"Rosa-Mynte Ryborg Mortensen","birthYear":2014,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Salli","fullName":"Salli Egegaard","birthYear":2015,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Sally","fullName":"Sally Skov","birthYear":2014,"active":false,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Sara Liv","fullName":"Sara Liv Pilipczuk Rasmussen","birthYear":2014,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Signe","fullName":"Signe Jæger","birthYear":2014,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Sofia","fullName":"Sofia Olivia Holm-Højer","birthYear":2015,"active":false,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Vera","fullName":"Vera Lilli Bjerre","birthYear":2014,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Vilda","fullName":"Vilda Breitenbach","birthYear":2014,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Vilde","fullName":"Vilde Egegaard","birthYear":2015,"active":false,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Vilja","fullName":"Vilja Rasmussen","birthYear":2014,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Vilma","fullName":"Vilma Kej Grønby","birthYear":2014,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Anna (U9)","fullName":"Anna (U9)","birthYear":null,"active":true,"isLoanPlayer":true,"defaultNumber":null},{"nickname":"Emelinn","fullName":"Emelinn","birthYear":null,"active":true,"isLoanPlayer":true,"defaultNumber":null}],"games":[{"date":"2026-01-04","team1":{"opponent":null,"players":[]},"team2":{"opponent":"Ajax - Gladsaxe","players":[{"slot":1,"name":"Maya S","factor":1},{"slot":2,"name":"Vilja","factor":1},{"slot":3,"name":"Miabella","factor":1},{"slot":4,"name":"Vilma","factor":1},{"slot":5,"name":"Maya H","factor":1},{"slot":6,"name":"Ingeborg","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":9,"name":"Vilda","factor":1}]},"cancellations":["Hadya (no show)"],"benched":["Vera"],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g001"},{"date":"2026-01-11","team1":{"opponent":"Nykøbing F - træningslejr Fejø","players":[{"slot":1,"name":"Signe","factor":1},{"slot":2,"name":"Vilma","factor":1},{"slot":3,"name":"Ingeborg","factor":1},{"slot":4,"name":"Sara Liv","factor":1},{"slot":5,"name":"Marie","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Vilja","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":9,"name":"Rosa","factor":1},{"slot":10,"name":"Philippa","factor":1},{"slot":11,"name":"Vilda","factor":1},{"slot":12,"name":"Nor","factor":1},{"slot":13,"name":"Anna (U9)","factor":1}]},"team2":{"opponent":null,"players":[]},"cancellations":[],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g002"},{"date":"2026-01-24","team1":{"opponent":"HIK3","players":[{"slot":2,"name":"Vilma","factor":1},{"slot":4,"name":"Ingeborg","factor":1},{"slot":5,"name":"Marie","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":9,"name":"Philippa","factor":1},{"slot":10,"name":"Rosa","factor":1}]},"team2":{"opponent":"Øresund 3","players":[{"slot":1,"name":"Gry","factor":1},{"slot":3,"name":"Lana","factor":1},{"slot":4,"name":"Anna (U9)","factor":1},{"slot":5,"name":"Hadya","factor":1},{"slot":6,"name":"Ingeborg","factor":1},{"slot":7,"name":"Vera","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":9,"name":"Maya H","factor":1},{"slot":10,"name":"Marie","factor":1}]},"cancellations":["Sara Liv"],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g003"},{"date":"2026-02-01","team1":{"opponent":"VSH2","players":[{"slot":2,"name":"Vilma","factor":1},{"slot":3,"name":"Maya S","factor":1},{"slot":4,"name":"Ingeborg","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":9,"name":"Rosa","factor":1},{"slot":10,"name":"Philippa","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"team2":{"opponent":"Ydun 3","players":[{"slot":1,"name":"Salli","factor":1},{"slot":3,"name":"Maya S","factor":1},{"slot":4,"name":"Ingeborg","factor":1},{"slot":5,"name":"Vilda","factor":1},{"slot":6,"name":"Hadya","factor":1},{"slot":7,"name":"Lana","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":10,"name":"Vera","factor":1}]},"cancellations":["Miabella","Laura"],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g004"},{"date":"2026-02-04","team1":{"opponent":"Lyngby Hk","players":[{"slot":1,"name":"Signe","factor":1},{"slot":2,"name":"Vilma","factor":1},{"slot":3,"name":"Maya S","factor":1},{"slot":5,"name":"Marie","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":9,"name":"Rosa","factor":1},{"slot":10,"name":"Philippa","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"team2":{"opponent":null,"players":[]},"cancellations":[],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g005"},{"date":"2026-02-08","team1":{"opponent":"Rødovre HK","players":[{"slot":2,"name":"Vilma","factor":1},{"slot":3,"name":"Maya S","factor":1},{"slot":4,"name":"Ingeborg","factor":1},{"slot":5,"name":"Marie","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":10,"name":"Philippa","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"team2":{"opponent":null,"players":[]},"cancellations":["Signe (syg)"],"benched":["Esther"],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g006"},{"date":"2026-02-21","team1":{"opponent":"Københavns HK","players":[{"slot":2,"name":"Vilma","factor":1},{"slot":3,"name":"Maya S","factor":1},{"slot":4,"name":"Ingeborg","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":10,"name":"Philippa","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"team2":{"opponent":"Københavns HK4","players":[{"slot":1,"name":"Laura","factor":1},{"slot":2,"name":"Vilda","factor":1},{"slot":3,"name":"Maya S","factor":1},{"slot":4,"name":"Ingeborg","factor":1},{"slot":5,"name":"Lana","factor":1},{"slot":7,"name":"Anna (U9)","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":9,"name":"Rosa","factor":1}]},"cancellations":["Vilja (syg)","Barbara"],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g007"},{"date":"2026-02-22","team1":{"opponent":null,"players":[]},"team2":{"opponent":"HIK4","players":[{"slot":1,"name":"Signe","factor":1},{"slot":2,"name":"Vilda","factor":1},{"slot":3,"name":"Maya S","factor":1},{"slot":4,"name":"Ingeborg","factor":1},{"slot":5,"name":"Marie","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":9,"name":"Rosa","factor":1},{"slot":11,"name":"Alesandra","factor":1}]},"cancellations":["Barbara"],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g008"},{"date":"2026-03-01","team1":{"opponent":"FIF3","players":[{"slot":1,"name":"Signe","factor":1},{"slot":2,"name":"Vilma","factor":1},{"slot":3,"name":"Vilja","factor":1},{"slot":5,"name":"Sara Liv","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":8,"name":"Vilda","factor":1},{"slot":9,"name":"Rosa","factor":1},{"slot":10,"name":"Philippa","factor":1}]},"team2":{"opponent":"Lyngby HK2","players":[{"slot":1,"name":"Lana","factor":1},{"slot":2,"name":"Lana","factor":1},{"slot":3,"name":"Maya S","factor":1},{"slot":4,"name":"Hadya","factor":1},{"slot":5,"name":"Ingeborg","factor":1},{"slot":6,"name":"Salli","factor":1},{"slot":7,"name":"Nor","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"cancellations":[],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g009"},{"date":"2026-03-14","team1":{"opponent":"Tårnby 2","players":[{"slot":1,"name":"Signe","factor":1},{"slot":2,"name":"Vilma","factor":1},{"slot":3,"name":"Maya","factor":1},{"slot":4,"name":"Ingeborg","factor":1},{"slot":5,"name":"Marie","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"team2":{"opponent":null,"players":[]},"cancellations":[],"benched":[],"notes":null,"status":"planned","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g010"},{"date":"2026-03-21","team1":{"opponent":null,"players":[]},"team2":{"opponent":"Freja HK","players":[]},"cancellations":[],"benched":[],"notes":null,"status":"planned","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g011"},{"date":"2026-03-22","team1":{"opponent":"Herlev 2","players":[]},"team2":{"opponent":"Amager 2","players":[]},"cancellations":[],"benched":[],"notes":null,"status":"planned","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g012"},{"date":"2026-03-29","team1":{"opponent":null,"players":[]},"team2":{"opponent":"KFUM","players":[{"slot":9,"name":"Rosa","factor":1}]},"cancellations":[],"benched":[],"notes":null,"status":"planned","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g013"},{"date":"2026-03-29","team1":{"opponent":"Påskecup","players":[]},"team2":{"opponent":null,"players":[]},"cancellations":[],"benched":[],"notes":null,"status":"planned","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g014"},{"date":"2025-05-25","team1":{"opponent":"Herlev træningstævne B","players":[{"slot":1,"name":"Aleksandra","factor":2},{"slot":2,"name":"Philippa","factor":2},{"slot":3,"name":"Gry","factor":2},{"slot":4,"name":"Marie","factor":2},{"slot":5,"name":"Maya S","factor":2},{"slot":6,"name":"Vilma","factor":2},{"slot":7,"name":"Ela","factor":2}]},"team2":{"opponent":"Herlev træningstævne C","players":[{"slot":1,"name":"Emmy","factor":2},{"slot":2,"name":"Bella","factor":2},{"slot":3,"name":"Miabella","factor":2},{"slot":4,"name":"Sara Liv","factor":2},{"slot":5,"name":"Salli","factor":2},{"slot":6,"name":"Vilde","factor":2},{"slot":7,"name":"Vilda","factor":2},{"slot":8,"name":"Vilja","factor":2}]},"cancellations":[],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g015"},{"date":"2025-06-07","team1":{"opponent":"Albertslund cup B","players":[{"slot":1,"name":"Aleksandra","factor":4},{"slot":2,"name":"Esther","factor":4},{"slot":3,"name":"Gry","factor":4},{"slot":4,"name":"Maya S","factor":4},{"slot":5,"name":"Ela","factor":4},{"slot":6,"name":"Philippa","factor":4},{"slot":7,"name":"Signe","factor":2}]},"team2":{"opponent":"Albertslund cup C","players":[{"slot":1,"name":"Anastasia","factor":4},{"slot":2,"name":"Ingeborg","factor":4},{"slot":3,"name":"Rosa","factor":4},{"slot":4,"name":"Vilja","factor":4},{"slot":5,"name":"Nor","factor":4},{"slot":6,"name":"Signe","factor":4},{"slot":7,"name":"Lana","factor":2}]},"cancellations":[],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g016"},{"date":"2025-06-12","team1":{"opponent":"Rødovre B","players":[{"slot":1,"name":"Aleksandra","factor":1},{"slot":2,"name":"Esther","factor":1},{"slot":3,"name":"Maya S","factor":1},{"slot":4,"name":"Gry","factor":1},{"slot":5,"name":"Vilma","factor":1},{"slot":6,"name":"Ela","factor":1},{"slot":7,"name":"Marie","factor":1},{"slot":8,"name":"Signe","factor":1}]},"team2":{"opponent":"Rødovre C","players":[{"slot":1,"name":"Henny","factor":1},{"slot":2,"name":"Ingeborg","factor":1},{"slot":3,"name":"Lana","factor":1},{"slot":4,"name":"Miabella","factor":1},{"slot":5,"name":"Nor","factor":1},{"slot":6,"name":"Rosa","factor":1},{"slot":7,"name":"Salli","factor":1},{"slot":8,"name":"Sofia","factor":1},{"slot":9,"name":"Vilda","factor":1},{"slot":10,"name":"Vilde","factor":1}]},"cancellations":[],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g017"},{"date":"2025-08-23","team1":{"opponent":"Amager Cup","players":[{"slot":1,"name":"Aleksandra","factor":5},{"slot":2,"name":"Ela","factor":5},{"slot":3,"name":"Gry","factor":5},{"slot":4,"name":"Marie","factor":5},{"slot":5,"name":"Maya S","factor":5},{"slot":6,"name":"Philippa","factor":5},{"slot":7,"name":"Vilma","factor":2},{"slot":8,"name":"Rosa","factor":5},{"slot":9,"name":"Salli","factor":5}]},"team2":{"opponent":null,"players":[]},"cancellations":[],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g018"},{"date":"2025-09-10","team1":{"opponent":"FIF B","players":[{"slot":1,"name":"Gry","factor":1},{"slot":2,"name":"Esther","factor":1},{"slot":3,"name":"Aleksandra","factor":1},{"slot":4,"name":"Vilma","factor":1},{"slot":5,"name":"Marie","factor":1},{"slot":6,"name":"Maya S","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":8,"name":"Salli","factor":1},{"slot":9,"name":"Rosa","factor":1}]},"team2":{"opponent":"FIF C","players":[{"slot":1,"name":"Vilda","factor":1},{"slot":2,"name":"Ingeborg","factor":1},{"slot":3,"name":"Lana","factor":1},{"slot":4,"name":"Bella","factor":1},{"slot":5,"name":"Signe","factor":1},{"slot":6,"name":"Vilja","factor":1},{"slot":7,"name":"Miabella","factor":1},{"slot":8,"name":"Hadya","factor":1},{"slot":9,"name":"Emmy","factor":1}]},"cancellations":[],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g019"},{"date":"2025-09-14","team1":{"opponent":"Niveaustævne B","players":[{"slot":1,"name":"Signe","factor":2},{"slot":2,"name":"Vilma","factor":2},{"slot":3,"name":"Maya S","factor":2},{"slot":5,"name":"Marie","factor":2},{"slot":6,"name":"Gry","factor":2},{"slot":7,"name":"Ela","factor":2},{"slot":9,"name":"Rosa","factor":2},{"slot":11,"name":"Aleksandra","factor":2}]},"team2":{"opponent":"Niveaustævne D","players":[{"slot":2,"name":"Vilja","factor":2},{"slot":3,"name":"Bella","factor":2},{"slot":4,"name":"Laura","factor":2},{"slot":5,"name":"Vera","factor":2},{"slot":6,"name":"Ingeborg","factor":2},{"slot":7,"name":"Sara Liv","factor":2},{"slot":8,"name":"Salli","factor":2},{"slot":9,"name":"Rosa","factor":2},{"slot":10,"name":"Lana","factor":2}]},"cancellations":["Esther (syg)"],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g020"},{"date":"2025-09-19","team1":{"opponent":"Næstved cup","players":[{"slot":1,"name":"Signe","factor":5},{"slot":2,"name":"Vilda","factor":5},{"slot":3,"name":"Maya S","factor":5},{"slot":4,"name":"Ingeborg","factor":5},{"slot":5,"name":"Marie","factor":5},{"slot":6,"name":"Gry","factor":5},{"slot":7,"name":"Ela","factor":5},{"slot":8,"name":"Esther","factor":5},{"slot":9,"name":"Rosa","factor":5},{"slot":11,"name":"Aleksandra","factor":5}]},"team2":{"opponent":null,"players":[]},"cancellations":[],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g021"},{"date":"2025-09-28","team1":{"opponent":"Ajax - FIF","players":[{"slot":1,"name":"Signe","factor":1},{"slot":5,"name":"Marie","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":8,"name":"Salli","factor":1},{"slot":9,"name":"Rosa","factor":1},{"slot":10,"name":"Philippa","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"team2":{"opponent":null,"players":[]},"cancellations":[],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g022"},{"date":"2025-10-05","team1":{"opponent":"KH - Ajax","players":[{"slot":2,"name":"Vilma","factor":1},{"slot":3,"name":"Maya S","factor":1},{"slot":5,"name":"Marie","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":9,"name":"Rosa","factor":1},{"slot":10,"name":"Philippa","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"team2":{"opponent":null,"players":[]},"cancellations":[],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g023"},{"date":"2025-10-09","team1":{"opponent":null,"players":[]},"team2":{"opponent":"Herlev 3 - Ajax 2","players":[{"slot":2,"name":"Vilma","factor":1},{"slot":3,"name":"Anna (U9)","factor":1},{"slot":4,"name":"Emmy","factor":1},{"slot":5,"name":"Sara Liv","factor":1},{"slot":6,"name":"Sally","factor":1},{"slot":7,"name":"Marie","factor":1},{"slot":8,"name":"Vilda","factor":1},{"slot":9,"name":"Nor","factor":1}]},"cancellations":["Ingeborg (syg på dagen)","Salli (motivation)","Esther"],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g024"},{"date":"2025-10-19","team1":{"opponent":null,"players":[]},"team2":{"opponent":"Amager 2 - Ajax 2","players":[{"slot":2,"name":"Emmy","factor":1},{"slot":3,"name":"Maya S","factor":1},{"slot":4,"name":"Ingeborg","factor":1},{"slot":5,"name":"Miabella","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Sara Liv","factor":1},{"slot":9,"name":"Rosa","factor":1},{"slot":10,"name":"Vilja","factor":1}]},"cancellations":["Hadya (no show)"],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g025"},{"date":"2025-10-25","team1":{"opponent":"Ajax - Ydun 2","players":[{"slot":1,"name":"Signe","factor":1},{"slot":2,"name":"Vilma","factor":1},{"slot":5,"name":"Marie","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":9,"name":"Rosa","factor":1},{"slot":10,"name":"Philippa","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"team2":{"opponent":"Ajax 2 - Freja HK","players":[{"slot":2,"name":"Maya S","factor":1},{"slot":3,"name":"Vilda","factor":1},{"slot":4,"name":"Nor","factor":1},{"slot":5,"name":"Vera","factor":1},{"slot":6,"name":"Ingeborg","factor":1},{"slot":7,"name":"Laura","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":9,"name":"Vilja","factor":1},{"slot":10,"name":"Lana","factor":1}]},"cancellations":["Salli (syg)"],"benched":["Bella","Sara Liv","Emmy"],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g026"},{"date":"2025-11-02","team1":{"opponent":null,"players":[]},"team2":{"opponent":"Ajax 2 - KBH Håndbold 3","players":[{"slot":1,"name":"Signe","factor":1},{"slot":2,"name":"Nor","factor":1},{"slot":3,"name":"Laura","factor":1},{"slot":7,"name":"Sara Liv","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":9,"name":"Vilja","factor":1},{"slot":10,"name":"Vilda","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"cancellations":["Salli","Emmy","Ingeborg (spillede ikke pga mavesmerter )"],"benched":["Nor","Lana","Rosa","Miabella","Bella (skal så sidde over 2 kampe i træk)"],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g027"},{"date":"2025-11-09","team1":{"opponent":"Tårnby HK - Ajax","players":[{"slot":1,"name":"Maya","factor":1},{"slot":2,"name":"Vilma","factor":1},{"slot":4,"name":"Vilja","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":9,"name":"Salli","factor":1},{"slot":10,"name":"Philippa","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"team2":{"opponent":null,"players":[]},"cancellations":["Marie (syg)","Ela (syg)"],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g028"},{"date":"2025-11-22","team1":{"opponent":"HIK2 - Ajax","players":[{"slot":1,"name":"Signe","factor":1},{"slot":3,"name":"Maya","factor":1},{"slot":5,"name":"Marie","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":9,"name":"Rosa","factor":1},{"slot":10,"name":"Philippa","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"team2":{"opponent":"Ajax 2 - FIF 2","players":[{"slot":1,"name":"Laura","factor":1},{"slot":2,"name":"Miabella","factor":1},{"slot":3,"name":"Vilda","factor":1},{"slot":5,"name":"Vera","factor":1},{"slot":6,"name":"Ingeborg","factor":1},{"slot":7,"name":"Lana","factor":1},{"slot":8,"name":"Salli","factor":1},{"slot":9,"name":"Vilja","factor":1}]},"cancellations":["Bella"],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g029"},{"date":"2025-11-23","team1":{"opponent":"Ajax - VSH 3","players":[{"slot":1,"name":"Signe","factor":1},{"slot":3,"name":"Maya","factor":1},{"slot":5,"name":"Marie","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":9,"name":"Rosa","factor":1},{"slot":10,"name":"Philippa","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"team2":{"opponent":"AB - Ajax 2","players":[{"slot":1,"name":"Laura","factor":1},{"slot":2,"name":"Sara Liv","factor":1},{"slot":3,"name":"Vilda","factor":1},{"slot":4,"name":"Vilma","factor":1},{"slot":5,"name":"Vera","factor":1},{"slot":6,"name":"Ingeborg","factor":1},{"slot":7,"name":"Lana","factor":1},{"slot":8,"name":"Salli","factor":1}]},"cancellations":["Marie"],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g030"},{"date":"2025-11-30","team1":{"opponent":"Ajax - Brøndby","players":[{"slot":1,"name":"Signe","factor":1},{"slot":2,"name":"Vilma","factor":1},{"slot":3,"name":"Maya","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":9,"name":"Rosa","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"team2":{"opponent":"Ajax 2 - LSH","players":[{"slot":1,"name":"Laura","factor":1},{"slot":2,"name":"Sara Liv","factor":1},{"slot":3,"name":"Miabella","factor":1},{"slot":4,"name":"Nor","factor":1},{"slot":6,"name":"Ingeborg","factor":1},{"slot":7,"name":"Vera","factor":1},{"slot":8,"name":"Salli","factor":1},{"slot":9,"name":"Lana","factor":1},{"slot":10,"name":"Vilja","factor":1}]},"cancellations":[],"benched":["Vilda"],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g031"},{"date":"2025-12-07","team1":{"opponent":"Amager - Ajax","players":[{"slot":1,"name":"Signe","factor":1},{"slot":2,"name":"Vilma","factor":1},{"slot":5,"name":"Marie","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":9,"name":"Rosa","factor":1},{"slot":10,"name":"Philippa","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"team2":{"opponent":"KFUM - Ajax 2","players":[{"slot":1,"name":"Laura","factor":1},{"slot":2,"name":"Sara Liv","factor":1},{"slot":3,"name":"Marie","factor":1},{"slot":4,"name":"Lana","factor":1},{"slot":5,"name":"Esther","factor":1},{"slot":6,"name":"Ingeborg","factor":1},{"slot":7,"name":"Vilja","factor":1},{"slot":8,"name":"Salli","factor":1},{"slot":10,"name":"Vilda","factor":1}]},"cancellations":[],"benched":["Miabella"],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g032"},{"date":"2025-12-14","team1":{"opponent":"Greve - Ajax","players":[{"slot":1,"name":"Signe","factor":1},{"slot":3,"name":"Vilja","factor":1},{"slot":4,"name":"Emelinn","factor":1},{"slot":5,"name":"Marie","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":9,"name":"Rosa","factor":1},{"slot":10,"name":"Philippa","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"team2":{"opponent":null,"players":[]},"cancellations":[],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g033"}]};
+// clearFilters helper
+function clearFilters() {
+  ['filter-opp','filter-date-from','filter-date-to'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  const ft = document.getElementById('filter-team'); if(ft) ft.value='all';
+  const sg = document.getElementById('sort-games'); if(sg) sg.value='date-desc';
+  renderGames();
+}
+
+let DB = loadData();
+let currentStatTab = 'spilletid';
+let playerTabFilter = 'active';
+
+function loadData() {
+  try { const r = localStorage.getItem('ajax_holdstyr_v5'); if (r) return JSON.parse(r); } catch(e) {}
+  return JSON.parse(JSON.stringify(SEED));
+}
+function save() { localStorage.setItem('ajax_holdstyr_v5', JSON.stringify(DB)); }
+function resetToSeed() {
+  if (!confirm('Nulstil alle data til original import?')) return;
+  localStorage.removeItem('ajax_holdstyr_v5');
+  DB = JSON.parse(JSON.stringify(SEED)); save(); showToast('Nulstillet'); renderGames();
+}
+
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  const idx = {kampe:0,'ny-kamp':1,spillere:2,statistik:3,eksport:4}[page] || 0;
+  document.querySelectorAll('nav button')[idx].classList.add('active');
+  if (page === 'kampe') renderGames();
+  if (page === 'spillere') renderPlayers();
+  if (page === 'statistik') renderStats();
+  if (page === 'ny-kamp') buildNewGameForm();
+}
+
+function fmtDate(d) {
+  if (!d) return '?';
+  try { return new Date(d + 'T12:00:00').toLocaleDateString('da-DK', {weekday:'short', day:'numeric', month:'short', year:'numeric'}); }
+  catch(e) { return d; }
+}
+function playerLabel(nick) {
+  const p = DB.players.find(x => x.nickname === nick);
+  if (!p) return nick;
+  return p.fullName + (p.birthYear ? ' (' + p.birthYear + ')' : '');
+}
+function getDefaultNumber(nick) {
+  return (DB.players.find(x => x.nickname === nick) || {}).defaultNumber || null;
+}
+function activePlayersSorted() {
+  return DB.players.filter(p => p.active).sort((a,b) => a.fullName.localeCompare(b.fullName, 'da'));
+}
+
+// ── GAMES LIST ──
+// Parse result string "X-Y" → {ajax, opp} given whether Ajax is home or away
+function parseResult(resultStr, oppName) {
+  if (!resultStr) return null;
+  const m = resultStr.match(/^(\d+)\s*[-–]\s*(\d+)$/);
+  if (!m) return null;
+  const home = parseInt(m[1]), away = parseInt(m[2]);
+  // If opponent name starts with Ajax, Ajax is home (first number)
+  const ajaxIsHome = (oppName || '').trim().toUpperCase().startsWith('AJAX');
+  const ajaxGoals = ajaxIsHome ? home : away;
+  const oppGoals = ajaxIsHome ? away : home;
+  const won = ajaxGoals > oppGoals;
+  const drew = ajaxGoals === oppGoals;
+  return { home, away, ajaxGoals, oppGoals, won, drew, lost: !won && !drew };
+}
+
+function getGameFilters() {
+  return {
+    teamFilter: document.getElementById('filter-team').value || 'all',
+    sort: document.getElementById('sort-games').value || 'date-desc',
+    oppSearch: (document.getElementById('filter-opp').value || '').toLowerCase().trim(),
+    dateFrom: document.getElementById('filter-date-from').value || '',
+    dateTo: document.getElementById('filter-date-to').value || '',
+  };
+}
+
+function renderGames() {
+  const el = document.getElementById('games-list');
+  const {teamFilter, sort, oppSearch, dateFrom, dateTo} = getGameFilters();
+
+  // Collect individual team entries
+  let entries = [];
+  DB.games.forEach(g => {
+    const hasB = g.team1.opponent || (g.team1.players||[]).length;
+    const hasC = g.team2.opponent || (g.team2.players||[]).length;
+    if (hasB && teamFilter !== 'c') entries.push({g, team:'b'});
+    if (hasC && teamFilter !== 'b') entries.push({g, team:'c'});
+  });
+
+  // Filter
+  entries = entries.filter(({g, team}) => {
+    const opp = (team==='b' ? g.team1 : g.team2).opponent || '';
+    if (oppSearch && !opp.toLowerCase().includes(oppSearch)) return false;
+    if (dateFrom && g.date < dateFrom) return false;
+    if (dateTo && g.date > dateTo) return false;
+    return true;
+  });
+
+  // Sort
+  entries.sort((a, b) => {
+    if (sort === 'date-desc') return b.g.date.localeCompare(a.g.date);
+    if (sort === 'date-asc') return a.g.date.localeCompare(b.g.date);
+    if (sort === 'opp-asc') {
+      const oa = (a.team==='b' ? a.g.team1 : a.g.team2).opponent || '';
+      const ob = (b.team==='b' ? b.g.team1 : b.g.team2).opponent || '';
+      return oa.localeCompare(ob, 'da');
+    }
+    return 0;
+  });
+
+  if (!entries.length) { el.innerHTML = '<div class="empty-state"><div class="icon">🏐</div><p>Ingen kampe matcher filteret</p></div>'; return; }
+
+  el.innerHTML = entries.map(({g, team}) => {
+    const isB = team === 'b';
+    const teamData = isB ? g.team1 : g.team2;
+    const opp = teamData.opponent || '?';
+    const players = teamData.players || [];
+    const status = g.status || 'planned';
+    const hasFocus = (g.focus||[]).some(f => f);
+    const hasReview = g.wentWell || g.wentBad;
+    const hasMotm = isB ? g.motmB : g.motmC;
+    const resultStr = isB ? (g.result||{}).b : (g.result||{}).c;
+    const parsed = parseResult(resultStr, opp);
+    const cancelCount = (g.cancellations||[]).length + (g.benched||[]).length;
+
+    // Result badge color
+    let resultBadge = '';
+    if (resultStr) {
+      if (parsed) {
+        const col = parsed.won ? '#2ECC71' : parsed.drew ? '#F5A623' : '#FF4060';
+        const bg = parsed.won ? 'rgba(39,174,96,.2)' : parsed.drew ? 'rgba(245,166,35,.2)' : 'rgba(204,16,51,.2)';
+        const border = parsed.won ? 'rgba(39,174,96,.4)' : parsed.drew ? 'rgba(245,166,35,.4)' : 'rgba(204,16,51,.4)';
+        const label = parsed.won ? 'V' : parsed.drew ? 'U' : 'T';
+        resultBadge = '<span style="display:inline-flex;align-items:center;gap:6px;margin-left:auto;flex-shrink:0">'
+          + '<span style="background:' + bg + ';color:' + col + ';border:1px solid ' + border + ';border-radius:6px;padding:2px 8px;font-family:\'Barlow Condensed\',sans-serif;font-weight:900;font-size:18px;letter-spacing:.5px">' + resultStr + '</span>'
+          + '<span style="background:' + bg + ';color:' + col + ';border:1px solid ' + border + ';border-radius:6px;padding:2px 7px;font-family:\'Barlow Condensed\',sans-serif;font-weight:900;font-size:13px">' + label + '</span>'
+          + '</span>';
+      } else {
+        resultBadge = '<span style="margin-left:auto;font-family:\'Barlow Condensed\',sans-serif;font-weight:700;font-size:16px;color:var(--muted)">' + resultStr + '</span>';
+      }
+    }
+
+    let h = '<div class="game-card ' + status + '" onclick="openGame(\'' + g.id + '\',\'' + team + '\')">';
+    h += '<div class="game-date">' + fmtDate(g.date) + ' ';
+    h += status === 'done' ? '<span style="color:var(--green)">✓ Spillet</span>' : '<span style="color:var(--gold)">● Planlagt</span>';
+    h += '</div>';
+    h += '<div style="display:flex;align-items:center;gap:8px">';
+    h += '<span class="team-badge-' + team + '">' + (isB ? 'B' : 'C') + '</span>';
+    h += '<span class="game-title">vs ' + opp + '</span>';
+    h += resultBadge;
+    h += '</div>';
+    h += '<div class="game-meta" style="margin-top:6px">';
+    h += '<span class="badge badge-muted">👕 ' + players.length + '</span>';
+    if (cancelCount) h += '<span class="badge badge-warn">❌ ' + cancelCount + '</span>';
+    if (hasMotm) h += '<span class="badge badge-star">⭐ ' + hasMotm + '</span>';
+    if (hasFocus) h += '<span class="badge" style="background:rgba(243,156,18,.15);color:var(--gold);border:1px solid rgba(243,156,18,.3)">🎯</span>';
+    if (hasReview) h += '<span class="badge badge-ok">📝</span>';
+    h += '</div></div>';
+    return h;
+  }).join('');
+}
+
+// ── GAME DETAIL ──
+function openGame(id, team) {
+  const g = DB.games.find(x => x.id === id); if (!g) return;
+  // if team not specified, pick whichever has data
+  if (!team) team = g.team1.opponent || g.team1.players.length ? 'b' : 'c';
+  document.getElementById('game-modal-content').innerHTML = buildGameDetailHTML(g, team);
+  document.getElementById('game-modal').classList.add('open');
+}
+
+function buildGameDetailHTML(g, team) {
+  const isB = team === 'b';
+  const teamData = isB ? g.team1 : g.team2;
+  const players = teamData.players || [];
+  const opp = teamData.opponent || '?';
+  const motmField = isB ? 'motmB' : 'motmC';
+  const currentMotm = g[motmField] || '';
+  const result = isB ? (g.result||{}).b : (g.result||{}).c;
+  const resultField = isB ? 'b' : 'c';
+
+  let h = '';
+  // Header
+  h += '<div class="flex-between" style="margin-bottom:10px">';
+  h += '<div style="display:flex;align-items:center;gap:8px">';
+  h += '<span class="team-badge-' + team + '" style="font-size:16px;width:32px;height:32px">' + (isB?'B':'C') + '</span>';
+  h += '<div class="modal-title" style="margin-bottom:0">vs ' + opp + '</div></div>';
+  h += '<button class="btn-x" onclick="closeModal(\'game-modal\')">✕</button></div>';
+  h += '<div style="font-size:13px;color:var(--muted);margin-bottom:12px">' + fmtDate(g.date);
+  if (g.notes) h += ' · <span style="color:var(--gold)">📌 ' + g.notes + '</span>';
+  h += '</div>';
+
+  // Switch team button if other team also has data
+  const otherTeam = isB ? 'c' : 'b';
+  const otherData = isB ? g.team2 : g.team1;
+  if (otherData.opponent || (otherData.players||[]).length) {
+    h += '<button class="btn btn-ghost btn-sm" style="margin-bottom:12px;width:100%" onclick="openGame(\'' + g.id + '\',\'' + otherTeam + '\')">';
+    h += '⇄ Skift til Hold ' + otherTeam.toUpperCase() + ' – ' + (otherData.opponent||'?') + '</button>';
+  }
+
+  // Lineup pills
+  h += '<div class="section-label">👕 Opstilling</div>';
+  h += '<div style="margin-bottom:10px">';
+  if (players.length) {
+    players.forEach(p => { h += '<span class="player-pill"><span class="pill-num">#' + p.slot + '</span>' + p.name + '</span>'; });
+  } else {
+    h += '<span style="color:var(--muted);font-size:13px">Ingen spillere planlagt</span>';
+  }
+  h += ' <button class="copy-btn" onclick="copyLineupToNew(\'' + team + '\',\'' + g.id + '\')">📋 Brug til ny kamp</button>';
+  h += '</div>';
+
+  // Participation confirmation
+  if (players.length) {
+    h += '<div class="section-label">✅ Bekræft deltagelse</div>';
+    h += '<div id="crows-' + g.id + '-' + team + '">' + buildPSRows(g, team) + '</div>';
+  }
+
+  // MoTM dropdown
+  if (players.length) {
+    h += '<div class="section-label">⭐ Kampens Spiller</div>';
+    h += '<select class="motm-select" onchange="saveMotm(\'' + g.id + '\',\'' + motmField + '\',this.value)">';
+    h += '<option value="">– Ingen valgt –</option>';
+    players.forEach(p => {
+      h += '<option value="' + p.name + '"' + (currentMotm === p.name ? ' selected' : '') + '>' + playerLabel(p.name) + '</option>';
+    });
+    h += '</select>';
+    if (currentMotm) h += '<div style="margin-top:6px;font-size:13px;color:var(--gold)">⭐ ' + playerLabel(currentMotm) + '</div>';
+  }
+
+  // Focus points
+  h += '<div class="section-label">🎯 Fokuspunkter</div>';
+  const focus = g.focus || ['','',''];
+  for (let i = 0; i < 3; i++) {
+    h += '<div class="focus-item"><div class="focus-num">' + (i+1) + '</div>';
+    h += '<input class="inline-input" type="text" value="' + (focus[i]||'').replace(/"/g,'&quot;') + '" placeholder="Fokuspunkt ' + (i+1) + '..." onchange="saveFocus(\'' + g.id + '\',' + i + ',this.value)"></div>';
+  }
+
+  // Result (after focus)
+  h += '<div class="section-label">📊 Resultat</div>';
+  h += '<input type="text" class="inline-input" style="margin-bottom:4px" value="' + (result||'') + '" placeholder="fx 8-5 (hjemmehold altid først)" onchange="saveResult(\'' + g.id + '\',\'' + resultField + '\',this.value)">';
+
+  // Review
+  h += '<div class="section-label">✅ Hvad gik godt?</div>';
+  h += '<div class="review-block"><textarea placeholder="Skriv her..." onchange="saveReview(\'' + g.id + '\',\'wentWell\',this.value)">' + (g.wentWell||'') + '</textarea></div>';
+  h += '<div class="section-label">⚠️ Hvad gik knap så godt?</div>';
+  h += '<div class="review-block"><textarea placeholder="Skriv her..." onchange="saveReview(\'' + g.id + '\',\'wentBad\',this.value)">' + (g.wentBad||'') + '</textarea></div>';
+
+  // Actions
+  h += '<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">';
+  h += '<button class="btn btn-red btn-sm" onclick="deleteGame(\'' + g.id + '\')">🗑 Slet</button>';
+  h += '<button class="btn btn-ghost btn-sm" onclick="openEditGame(\'' + g.id + '\',\'' + team + '\')">✏️ Rediger</button>';
+  h += '<button class="btn btn-green" style="flex:1" onclick="markDone(\'' + g.id + '\',\'' + team + '\')">' + (g.status==='done' ? '✓ Spillet' : '✅ Marker som spillet') + '</button>';
+  h += '</div>';
+  return h;
+}
+
+function buildPSRows(g, team) {
+  const players = (team==='b' ? g.team1 : g.team2).players || [];
+  return players.map(p => {
+    const name = p.name;
+    const s = (g.playerStatus||{})[name] || 'planned';
+    let row = '<div class="confirm-player-row">';
+    row += '<div class="confirm-name"><div class="cn-full">' + playerLabel(name) + '</div>';
+    row += '<div class="cn-num">#' + p.slot + '</div></div>';
+    row += '<div class="confirm-actions">';
+    row += '<button class="confirm-btn cb-played ' + (s==='played'?'sel':'') + '" onclick="setPS(\'' + g.id + '\',\'' + name + '\',\'played\',\'' + team + '\')">✓ Spillet</button>';
+    row += '<button class="confirm-btn cb-cancel ' + (s==='cancelled'?'sel':'') + '" onclick="setPS(\'' + g.id + '\',\'' + name + '\',\'cancelled\',\'' + team + '\')">✗ Afbud</button>';
+    row += '<button class="confirm-btn cb-benched ' + (s==='benched'?'sel':'') + '" onclick="setPS(\'' + g.id + '\',\'' + name + '\',\'benched\',\'' + team + '\')">🪑 Sidder</button>';
+    row += '</div></div>';
+    return row;
+  }).join('');
+}
+
+function setPS(gameId, name, status, team) {
+  const g = DB.games.find(x => x.id === gameId); if (!g) return;
+  if (!g.playerStatus) g.playerStatus = {};
+  g.playerStatus[name] = status; save();
+  const el = document.getElementById('crows-' + gameId + '-' + team);
+  if (el) el.innerHTML = buildPSRows(g, team);
+  showToast('Gemt');
+}
+function saveResult(gameId, field, val) {
+  const g = DB.games.find(x => x.id === gameId); if (!g) return;
+  if (!g.result) g.result = {}; g.result[field] = val; save(); showToast('Resultat gemt');
+}
+function saveMotm(gameId, field, name) {
+  const g = DB.games.find(x => x.id === gameId); if (!g) return;
+  g[field] = name; save();
+  showToast(name ? ('⭐ ' + name) : 'Fravalgt');
+  // Re-render just the motm section
+  openGame(gameId, field === 'motmB' ? 'b' : 'c');
+}
+function saveFocus(gameId, idx, val) {
+  const g = DB.games.find(x => x.id === gameId); if (!g) return;
+  if (!g.focus) g.focus = ['','','']; g.focus[idx] = val; save(); showToast('Gemt');
+}
+function saveReview(gameId, field, val) {
+  const g = DB.games.find(x => x.id === gameId); if (!g) return;
+  g[field] = val; save(); showToast('Gemt');
+}
+function markDone(id, team) {
+  const g = DB.games.find(x => x.id === id);
+  if (g) { g.status = 'done'; save(); showToast('✓ Spillet'); openGame(id, team); }
+}
+function deleteGame(id) {
+  if (!confirm('Slet denne kamp?')) return;
+  DB.games = DB.games.filter(x => x.id !== id); save(); closeModal('game-modal'); renderGames();
+}
+function copyLineupToNew(team, fromGameId) {
+  const g = DB.games.find(x => x.id === fromGameId); if (!g) return;
+  const players = team === 'b' ? g.team1.players : g.team2.players;
+  sessionStorage.setItem('ajax_copy_lineup', JSON.stringify({team, players}));
+  closeModal('game-modal'); showPage('ny-kamp'); showToast('Hold ' + team.toUpperCase() + ' kopieret');
+}
+
+// ── EDIT LINEUP ──
+function openEditGame(id, team) {
+  const g = DB.games.find(x => x.id === id); if (!g) return;
+  const teamData = team === 'b' ? g.team1 : g.team2;
+  const players = teamData.players || [];
+  // Build a player selection UI with multi-select approach
+  const active = activePlayersSorted();
+  const selectedNames = new Set(players.map(p => p.name));
+  const numMap = {}; players.forEach(p => { numMap[p.name] = p.slot; });
+
+  let h = '<div class="flex-between" style="margin-bottom:12px">';
+  h += '<div class="modal-title" style="margin-bottom:0">Rediger Hold ' + team.toUpperCase() + '</div>';
+  h += '<button class="btn-x" onclick="openGame(\'' + id + '\',\'' + team + '\')">✕</button></div>';
+
+  h += '<div style="font-size:13px;color:var(--muted);margin-bottom:10px">Klik på spillere for at vælge/fravælge. Juster numre efter behov.</div>';
+  h += '<div id="edit-player-grid">' + buildPlayerPickerHTML(active, selectedNames, numMap, id, team) + '</div>';
+  h += '<div style="margin-top:14px;display:flex;gap:8px">';
+  h += '<button class="btn btn-ghost" style="flex:1" onclick="openGame(\'' + id + '\',\'' + team + '\')">Annuller</button>';
+  h += '<button class="btn btn-ajax" style="flex:1" onclick="saveEditGame(\'' + id + '\',\'' + team + '\')">💾 Gem opstilling</button>';
+  h += '</div>';
+  document.getElementById('game-modal-content').innerHTML = h;
+}
+
+function buildPlayerPickerHTML(active, selectedNames, numMap, gameId, team) {
+  return '<div class="player-picker">' + active.map(p => {
+    const sel = selectedNames.has(p.nickname);
+    const num = numMap[p.nickname] || p.defaultNumber || '';
+    const yr = p.birthYear ? ' ' + p.birthYear : '';
+    return '<div class="picker-row ' + (sel?'sel':'') + '" onclick="togglePickerPlayer(\'' + p.nickname + '\',\'' + gameId + '\',\'' + team + '\')" id="pr-' + p.nickname.replace(/[^a-zA-Z0-9]/g,'_') + '">'
+      + '<div class="picker-check">' + (sel?'✓':'') + '</div>'
+      + '<div class="picker-name"><div>' + p.fullName + '</div><div style="font-size:11px;color:var(--muted)">' + p.nickname + yr + '</div></div>'
+      + '<input class="picker-num" type="number" min="1" max="99" value="' + num + '" placeholder="nr" '
+      + 'id="pnum-' + p.nickname.replace(/[^a-zA-Z0-9]/g,'_') + '" '
+      + 'onclick="event.stopPropagation()" onchange="checkDuplicateNumbers(\'' + gameId + '\',\'' + team + '\')">'
+      + '</div>';
+  }).join('') + '</div>';
+}
+
+// Track selected players for edit mode
+let editSelected = {};
+function togglePickerPlayer(nick, gameId, team) {
+  if (!editSelected[gameId + team]) {
+    // Initialize from current game state
+    const g = DB.games.find(x => x.id === gameId);
+    const players = (team==='b' ? g.team1 : g.team2).players || [];
+    editSelected[gameId + team] = new Set(players.map(p => p.name));
+  }
+  const sel = editSelected[gameId + team];
+  if (sel.has(nick)) sel.delete(nick); else sel.add(nick);
+
+  const safeNick = nick.replace(/[^a-zA-Z0-9]/g,'_');
+  const row = document.getElementById('pr-' + safeNick);
+  const check = row.querySelector('.picker-check');
+  if (sel.has(nick)) { row.classList.add('sel'); check.textContent = '✓'; }
+  else { row.classList.remove('sel'); check.textContent = ''; }
+  checkDuplicateNumbers(gameId, team);
+}
+
+function checkDuplicateNumbers(gameId, team) {
+  const key = gameId + team;
+  if (!editSelected[key]) return;
+  const sel = editSelected[key];
+  const nums = {};
+  sel.forEach(nick => {
+    const safeNick = nick.replace(/[^a-zA-Z0-9]/g,'_');
+    const el = document.getElementById('pnum-' + safeNick);
+    if (!el) return;
+    const n = el.value;
+    if (n) { if (!nums[n]) nums[n] = []; nums[n].push(nick); }
+  });
+  // Highlight duplicates
+  sel.forEach(nick => {
+    const safeNick = nick.replace(/[^a-zA-Z0-9]/g,'_');
+    const el = document.getElementById('pnum-' + safeNick);
+    if (!el) return;
+    const n = el.value;
+    el.style.borderColor = (n && nums[n] && nums[n].length > 1) ? 'var(--red)' : 'var(--border)';
+    el.style.color = (n && nums[n] && nums[n].length > 1) ? 'var(--red)' : 'var(--gold)';
+  });
+}
+
+function saveEditGame(id, team) {
+  const g = DB.games.find(x => x.id === id); if (!g) return;
+  const key = id + team;
+  const sel = editSelected[key];
+  if (!sel) { openGame(id, team); return; }
+
+  const players = [];
+  let slot = 1;
+  sel.forEach(nick => {
+    const safeNick = nick.replace(/[^a-zA-Z0-9]/g,'_');
+    const numEl = document.getElementById('pnum-' + safeNick);
+    const num = numEl ? (parseInt(numEl.value) || slot) : slot;
+    players.push({slot: num, name: nick, factor: 1});
+    slot++;
+  });
+  players.sort((a,b) => a.slot - b.slot);
+
+  if (team === 'b') g.team1.players = players;
+  else g.team2.players = players;
+
+  delete editSelected[key];
+  save(); showToast('Gemt ✓'); openGame(id, team);
+}
+
+// ── NEW GAME ──
+// Only one team per game now
+let newGameSelected = new Set();
+let newGameTeam = 'b';
+
+function buildNewGameForm() {
+  newGameTeam = document.getElementById('nk-team').value || 'b';
+  newGameSelected = new Set();
+
+  // Try to restore copied lineup
+  let copied = null;
+  try { copied = JSON.parse(sessionStorage.getItem('ajax_copy_lineup') || 'null'); } catch(e) {}
+  if (copied && copied.team === newGameTeam) {
+    copied.players.forEach(p => newGameSelected.add(p.name));
+    sessionStorage.removeItem('ajax_copy_lineup');
+  }
+
+  renderPlayerPicker();
+}
+
+function renderPlayerPicker() {
+  const active = activePlayersSorted();
+  const el = document.getElementById('nk-player-grid');
+  if (!el) return;
+
+  const numMap = {};
+  newGameSelected.forEach(nick => {
+    const p = DB.players.find(x => x.nickname === nick);
+    if (p && p.defaultNumber) numMap[nick] = p.defaultNumber;
+  });
+
+  el.innerHTML = '<div class="player-picker">' + active.map(p => {
+    const sel = newGameSelected.has(p.nickname);
+    const num = p.defaultNumber || '';
+    const yr = p.birthYear ? ' ' + p.birthYear : '';
+    const safeNick = p.nickname.replace(/[^a-zA-Z0-9]/g,'_');
+    return '<div class="picker-row ' + (sel?'sel':'') + '" onclick="toggleNewPlayer(\'' + p.nickname + '\')" id="nkpr-' + safeNick + '">'
+      + '<div class="picker-check">' + (sel?'✓':'') + '</div>'
+      + '<div class="picker-name"><div>' + p.fullName + '</div><div style="font-size:11px;color:var(--muted)">' + p.nickname + yr + '</div></div>'
+      + '<input class="picker-num" type="number" min="1" max="99" value="' + (sel ? num : '') + '" placeholder="nr" '
+      + 'id="nkpnum-' + safeNick + '" '
+      + 'onclick="event.stopPropagation()" onchange="checkNewDuplicates()">'
+      + '</div>';
+  }).join('') + '</div>';
+  updateNewGameSummary();
+}
+
+function toggleNewPlayer(nick) {
+  const safeNick = nick.replace(/[^a-zA-Z0-9]/g,'_');
+  const row = document.getElementById('nkpr-' + safeNick);
+  const check = row.querySelector('.picker-check');
+  const numEl = document.getElementById('nkpnum-' + safeNick);
+  if (newGameSelected.has(nick)) {
+    newGameSelected.delete(nick);
+    row.classList.remove('sel');
+    check.textContent = '';
+    if (numEl) numEl.value = '';
+  } else {
+    newGameSelected.add(nick);
+    row.classList.add('sel');
+    check.textContent = '✓';
+    if (numEl) {
+      const p = DB.players.find(x => x.nickname === nick);
+      if (p && p.defaultNumber) numEl.value = p.defaultNumber;
+    }
+  }
+  updateNewGameSummary();
+  checkNewDuplicates();
+}
+
+function checkNewDuplicates() {
+  const nums = {};
+  newGameSelected.forEach(nick => {
+    const safeNick = nick.replace(/[^a-zA-Z0-9]/g,'_');
+    const el = document.getElementById('nkpnum-' + safeNick);
+    if (!el || !el.value) return;
+    if (!nums[el.value]) nums[el.value] = [];
+    nums[el.value].push(nick);
+  });
+  newGameSelected.forEach(nick => {
+    const safeNick = nick.replace(/[^a-zA-Z0-9]/g,'_');
+    const el = document.getElementById('nkpnum-' + safeNick);
+    if (!el) return;
+    const isDup = el.value && nums[el.value] && nums[el.value].length > 1;
+    el.style.borderColor = isDup ? 'var(--red)' : 'var(--border)';
+    el.style.color = isDup ? 'var(--red)' : 'var(--gold)';
+  });
+}
+
+function updateNewGameSummary() {
+  const el = document.getElementById('nk-summary');
+  if (!el) return;
+  el.textContent = newGameSelected.size + ' spillere valgt';
+}
+
+function loadLastGameForNew() {
+  const team = newGameTeam;
+  const sorted = [...DB.games].sort((a,b) => b.date.localeCompare(a.date));
+  const last = sorted.find(g => {
+    const td = team==='b' ? g.team1 : g.team2;
+    return td.players && td.players.length > 0;
+  });
+  if (!last) { showToast('Ingen tidligere kampe fundet'); return; }
+  const players = (team==='b' ? last.team1 : last.team2).players;
+  newGameSelected = new Set(players.map(p => p.name));
+  renderPlayerPicker();
+  showToast('Kopieret fra ' + fmtDate(last.date));
+}
+
+function createGame() {
+  const date = document.getElementById('nk-date').value;
+  if (!date) { alert('Vælg en dato'); return; }
+  const team = newGameTeam;
+  const opp = document.getElementById('nk-opp').value;
+
+  const players = [];
+  newGameSelected.forEach(nick => {
+    const safeNick = nick.replace(/[^a-zA-Z0-9]/g,'_');
+    const numEl = document.getElementById('nkpnum-' + safeNick);
+    const num = numEl ? (parseInt(numEl.value) || 0) : 0;
+    players.push({slot: num, name: nick, factor: 1});
+  });
+  players.sort((a,b) => a.slot - b.slot);
+
+  const isB = team === 'b';
+  DB.games.push({
+    id: 'g' + Date.now(), date,
+    team1: {opponent: isB ? opp : null, players: isB ? players : []},
+    team2: {opponent: !isB ? opp : null, players: !isB ? players : []},
+    cancellations: [], benched: [], notes: document.getElementById('nk-notes').value,
+    status: 'planned', result: {}, playerStatus: {}, focus: ['','',''], wentWell: '', wentBad: '', motmB: '', motmC: ''
+  });
+  save(); showToast('Kamp oprettet ✓'); showPage('kampe');
+}
+
+// ── PLAYERS ──
+function setPlayerTab(tab, el) {
+  playerTabFilter = tab;
+  document.querySelectorAll('#page-spillere .tab-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active'); renderPlayers();
+}
+function renderPlayers() {
+  const search = (document.getElementById('player-search').value || '').toLowerCase();
+  let players = DB.players.filter((p,i,a) => a.findIndex(x => x.nickname === p.nickname) === i);
+  if (playerTabFilter === 'active') players = players.filter(p => p.active);
+  if (playerTabFilter === 'inactive') players = players.filter(p => !p.active);
+  if (search) players = players.filter(p => p.fullName.toLowerCase().includes(search) || p.nickname.toLowerCase().includes(search));
+  players.sort((a,b) => a.fullName.localeCompare(b.fullName, 'da'));
+  const stats = computePlayerStats();
+  if (!players.length) { document.getElementById('players-list').innerHTML = '<div class="empty-state"><div class="icon">👤</div><p>Ingen spillere</p></div>'; return; }
+  document.getElementById('players-list').innerHTML = players.map(p => {
+    const s = stats[p.nickname] || {b:0,c:0,cancel:0,bench:0,motm:0};
+    const yr = p.birthYear ? ' (' + p.birthYear + ')' : '';
+    let h = '<div class="card" style="padding:12px 14px;margin-bottom:8px">';
+    h += '<div class="flex-between"><div>';
+    h += '<div style="font-weight:600;font-size:15px">' + p.fullName + yr + (p.isLoanPlayer ? ' <span style="font-size:11px;color:var(--gold)">(Låner)</span>' : '') + '</div>';
+    h += '<div style="font-size:12px;color:var(--muted)">' + (p.defaultNumber ? '<span style="color:var(--gold);font-weight:700">#' + p.defaultNumber + '</span> · ' : '') + p.nickname + '</div>';
+    h += '</div><div style="text-align:right">';
+    h += '<div style="font-family:\'Barlow Condensed\',sans-serif;font-weight:800;font-size:22px;color:var(--ajax-red)">' + (s.b+s.c) + '</div>';
+    h += '<div style="font-size:11px;color:var(--muted)">kampe</div></div></div>';
+    h += '<div class="game-meta" style="margin-top:8px">';
+    if (s.b) h += '<span class="badge badge-b1">B: ' + s.b + '</span>';
+    if (s.c) h += '<span class="badge badge-b2">C: ' + s.c + '</span>';
+    if (s.motm) h += '<span class="badge badge-star">⭐ ' + s.motm + 'x</span>';
+    if (s.cancel) h += '<span class="badge badge-warn">Afbud: ' + s.cancel + '</span>';
+    if (s.bench) h += '<span class="badge badge-muted">Sidder: ' + s.bench + '</span>';
+    if (!p.active) h += '<span class="badge badge-muted">Stoppet</span>';
+    h += '</div>';
+    h += '<div style="display:flex;gap:6px;margin-top:10px;align-items:center;flex-wrap:wrap">';
+    h += '<label style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Standardnr:</label>';
+    h += '<input type="number" min="1" max="99" value="' + (p.defaultNumber||'') + '" placeholder="–"';
+    h += ' style="width:52px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:6px;color:var(--gold);padding:3px 6px;font-family:\'Barlow Condensed\',sans-serif;font-weight:700;font-size:14px;text-align:center;outline:none"';
+    h += ' onchange="setDefaultNum(\'' + p.nickname + '\',this.value)">';
+    h += '<button class="btn btn-ghost btn-sm" onclick="toggleActive(\'' + p.nickname + '\')">' + (p.active ? 'Marker stoppet' : 'Genaktiver') + '</button>';
+    h += '</div></div>';
+    return h;
+  }).join('');
+}
+function setDefaultNum(nick, val) {
+  const p = DB.players.find(x => x.nickname === nick);
+  if (p) { p.defaultNumber = val ? parseInt(val) : null; save(); showToast('Nummer gemt'); }
+}
+function toggleActive(nick) {
+  const p = DB.players.find(x => x.nickname === nick);
+  if (p) { p.active = !p.active; save(); renderPlayers(); }
+}
+function openAddPlayer() {
+  ['pm-nick','pm-full','pm-year','pm-num'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('player-modal').classList.add('open');
+}
+function saveNewPlayer() {
+  const nick = document.getElementById('pm-nick').value.trim();
+  const full = document.getElementById('pm-full').value.trim();
+  if (!nick) { alert('Kaldenavn er påkrævet'); return; }
+  if (DB.players.find(p => p.nickname === nick)) { alert('Spiller med det kaldenavn findes allerede'); return; }
+  DB.players.push({nickname:nick, fullName:full||nick, birthYear:parseInt(document.getElementById('pm-year').value)||null, active:true, isLoanPlayer:false, defaultNumber:parseInt(document.getElementById('pm-num').value)||null});
+  save(); closeModal('player-modal'); renderPlayers(); showToast('Spiller tilføjet ✓');
+}
+
+// ── STATS ──
+function computePlayerStats() {
+  const stats = {};
+  DB.players.forEach(p => { stats[p.nickname] = {b:0, c:0, cancel:0, bench:0, motm:0}; });
+  DB.games.filter(g => g.status === 'done').forEach(g => {
+    (g.team1.players||[]).forEach(p => {
+      if (!stats[p.name]) stats[p.name] = {b:0,c:0,cancel:0,bench:0,motm:0};
+      stats[p.name].b += (p.factor||1);
+    });
+    (g.team2.players||[]).forEach(p => {
+      if (!stats[p.name]) stats[p.name] = {b:0,c:0,cancel:0,bench:0,motm:0};
+      stats[p.name].c += (p.factor||1);
+    });
+    (g.cancellations||[]).forEach(raw => {
+      const n = raw.split('(')[0].trim();
+      if (!stats[n]) stats[n] = {b:0,c:0,cancel:0,bench:0,motm:0};
+      stats[n].cancel++;
+    });
+    (g.benched||[]).forEach(n => {
+      if (!stats[n]) stats[n] = {b:0,c:0,cancel:0,bench:0,motm:0};
+      stats[n].bench++;
+    });
+    if (g.motmB) { if (!stats[g.motmB]) stats[g.motmB]={b:0,c:0,cancel:0,bench:0,motm:0}; stats[g.motmB].motm++; }
+    if (g.motmC) { if (!stats[g.motmC]) stats[g.motmC]={b:0,c:0,cancel:0,bench:0,motm:0}; stats[g.motmC].motm++; }
+  });
+  return stats;
+}
+function setStatTab(tab, el) {
+  currentStatTab = tab;
+  document.querySelectorAll('#page-statistik .tab-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active'); renderStats();
+}
+function renderStats() {
+  const stats = computePlayerStats();
+  const active = DB.players.filter((p,i,a) => p.active && a.findIndex(x => x.nickname === p.nickname) === i);
+  const yr = p => p.birthYear ? ' (' + p.birthYear + ')' : '';
+  const maxV = arr => Math.max(...arr, 1);
+  const el = document.getElementById('stat-content');
+
+  if (currentStatTab === 'spilletid') {
+    const rows = active.map(p => ({...p, b:stats[p.nickname]?.b||0, c:stats[p.nickname]?.c||0}))
+      .map(p => ({...p, val: p.b+p.c})).sort((a,b) => b.val-a.val);
+    const m = maxV(rows.map(r => r.val));
+    let h = '<p style="font-size:12px;color:var(--muted);margin-bottom:10px">Kun spillede kampe · Inkl. stævne-faktor</p>';
+    h += '<table class="stats-table"><thead><tr><th>Spiller</th><th class="num">B</th><th class="num">C</th><th class="num">Total</th></tr></thead><tbody>';
+    rows.forEach(r => {
+      h += '<tr><td><div>' + r.fullName + yr(r) + '</div><div class="stat-bar"><div class="stat-fill" style="width:' + Math.round(r.val/m*100) + '%"></div></div></td>';
+      h += '<td class="num">' + r.b + '</td><td class="num">' + r.c + '</td><td class="num" style="color:var(--ajax-red);font-size:20px">' + r.val + '</td></tr>';
+    });
+    el.innerHTML = h + '</tbody></table>';
+  } else if (currentStatTab === 'afbud') {
+    const rows = active.map(p => ({...p, val:stats[p.nickname]?.cancel||0})).sort((a,b) => b.val-a.val);
+    const m = maxV(rows.map(r => r.val));
+    let h = '<table class="stats-table"><thead><tr><th>Spiller</th><th class="num">Afbud</th></tr></thead><tbody>';
+    rows.forEach(r => { h += '<tr><td><div>' + r.fullName + yr(r) + '</div><div class="stat-bar"><div class="stat-fill" style="width:' + Math.round(r.val/m*100) + '%;background:var(--gold)"></div></div></td><td class="num" style="color:var(--gold)">' + r.val + '</td></tr>'; });
+    el.innerHTML = h + '</tbody></table>';
+  } else if (currentStatTab === 'oversidder') {
+    const rows = active.map(p => ({...p, val:stats[p.nickname]?.bench||0})).sort((a,b) => b.val-a.val);
+    const m = maxV(rows.map(r => r.val));
+    let h = '<table class="stats-table"><thead><tr><th>Spiller</th><th class="num">Oversidder</th></tr></thead><tbody>';
+    rows.forEach(r => { h += '<tr><td><div>' + r.fullName + yr(r) + '</div><div class="stat-bar"><div class="stat-fill" style="width:' + Math.round(r.val/m*100) + '%;background:var(--purple)"></div></div></td><td class="num" style="color:var(--purple)">' + r.val + '</td></tr>'; });
+    el.innerHTML = h + '</tbody></table>';
+  } else if (currentStatTab === 'motm') {
+    const rows = active.map(p => ({...p, val:stats[p.nickname]?.motm||0})).filter(r => r.val > 0).sort((a,b) => b.val-a.val);
+    if (!rows.length) { el.innerHTML = '<div class="empty-state"><div class="icon">⭐</div><p>Ingen kampens spiller udnævnt endnu</p></div>'; return; }
+    const m = maxV(rows.map(r => r.val));
+    let h = '<table class="stats-table"><thead><tr><th>Spiller</th><th class="num">⭐ Gange</th></tr></thead><tbody>';
+    rows.forEach(r => { h += '<tr><td><div>' + r.fullName + yr(r) + '</div><div class="stat-bar"><div class="stat-fill" style="width:' + Math.round(r.val/m*100) + '%;background:#ffd700"></div></div></td><td class="num" style="color:#ffd700">' + r.val + '</td></tr>'; });
+    el.innerHTML = h + '</tbody></table>';
+  }
+}
+
+// ── EXPORT ──
+function exportCSV(type) {
+  let rows, filename;
+  if (type === 'games') {
+    rows = [['Dato','Hold','Modstander','Spiller','Fulde navn','Trøjenr','Kampe','Resultat','Kampens Spiller','Fokus 1','Fokus 2','Fokus 3','Gik godt','Kan forbedres']];
+    DB.games.forEach(g => {
+      const add = (players, team, opp, res, motm) => {
+        if (!opp) return;
+        players.forEach(p => rows.push([g.date,team,opp,p.name,playerLabel(p.name).split('(')[0].trim(),p.slot,p.factor||1,res||'',motm||'',(g.focus||[])[0]||'',(g.focus||[])[1]||'',(g.focus||[])[2]||'',g.wentWell||'',g.wentBad||'']));
+      };
+      add(g.team1.players||[], 'B', g.team1.opponent, (g.result||{}).b, g.motmB);
+      add(g.team2.players||[], 'C', g.team2.opponent, (g.result||{}).c, g.motmC);
+    });
+    filename = 'ajax-kampe.csv';
+  } else {
+    const stats = computePlayerStats();
+    rows = [['Fulde navn','Kaldenavn','Fødselsår','Standardnr','B-kampe','C-kampe','Total','Afbud','Oversidder','Kampens Spiller','Status']];
+    DB.players.filter((p,i,a) => a.findIndex(x => x.nickname===p.nickname)===i).forEach(p => {
+      const s = stats[p.nickname]||{b:0,c:0,cancel:0,bench:0,motm:0};
+      rows.push([p.fullName,p.nickname,p.birthYear||'',p.defaultNumber||'',s.b,s.c,s.b+s.c,s.cancel,s.bench,s.motm,p.active?'Aktiv':'Stoppet']);
+    });
+    filename = 'ajax-spillere.csv';
+  }
+  const csv = rows.map(r => r.map(v => '"' + String(v).replace(/"/g,'""') + '"').join(',')).join('\n');
+  download(filename, csv, 'text/csv;charset=utf-8;'); showToast('CSV eksporteret ✓');
+}
+function exportJSON() { download('ajax-holdstyr-backup.json', JSON.stringify(DB, null, 2), 'application/json'); showToast('Backup downloadet ✓'); }
+function importJSON(input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.players||!data.games) throw new Error('Ugyldigt format');
+      if (!confirm('Dette erstatter alle nuværende data. Fortsæt?')) return;
+      DB = data; save(); showToast('Data indlæst ✓'); renderGames();
+    } catch(err) { alert('Kunne ikke indlæse: ' + err.message); }
+  };
+  reader.readAsText(file); input.value = '';
+}
+function download(filename, content, mime) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], {type: mime}));
+  a.download = filename; a.click();
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); }));
+function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); }
+
+// INIT
+renderGames();
+document.getElementById('nk-date').value = new Date().toISOString().split('T')[0];
+buildNewGameForm();
+
+</script>
+</body>
+</html>
