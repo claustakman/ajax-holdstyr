@@ -378,6 +378,13 @@ main { padding: 16px; max-width: 860px; margin: 0 auto; }
     <button class="tab-btn" onclick="setStatTab('topscorer',this)">⚽ Mål</button>
     <button class="tab-btn" onclick="setStatTab('assists',this)">🅰️ Assists</button>
     <button class="tab-btn" onclick="setStatTab('redninger',this)">🧤 Redninger</button>
+    <div style="flex:1"></div>
+    <select onchange="setStatYearFilter(this.value)" style="background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:5px 10px;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;outline:none;cursor:pointer;align-self:center">
+      <option value="all">Alle årgange</option>
+      <option value="2014">2014</option>
+      <option value="2015">2015</option>
+      <option value="2016">2016</option>
+    </select>
   </div>
   <div id="stat-content"></div>
 </div>
@@ -633,6 +640,7 @@ let currentStatTab = 'spilletid';
 let playerTabFilter = 'active';
 let playerSort = 'name';
 let playerYearFilter = 'all';
+let statYearFilter = 'all';
 
 function loadData() {
   try { const r = localStorage.getItem('ajax_holdstyr_v5'); if (r) return JSON.parse(r); } catch(e) {}
@@ -1340,9 +1348,11 @@ function setStatTab(tab, el) {
   document.querySelectorAll('#page-statistik .tab-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active'); renderStats();
 }
+function setStatYearFilter(y) { statYearFilter = y; renderStats(); }
 function renderStats() {
   const stats = computePlayerStats();
-  const active = DB.players.filter((p,i,a) => p.active && a.findIndex(x => x.nickname === p.nickname) === i);
+  let active = DB.players.filter((p,i,a) => p.active && a.findIndex(x => x.nickname === p.nickname) === i);
+  if (statYearFilter !== 'all') active = active.filter(p => String(p.birthYear) === statYearFilter);
   const yr = p => p.birthYear ? ' (' + p.birthYear + ')' : '';
   const maxV = arr => Math.max(...arr, 1);
   const el = document.getElementById('stat-content');
