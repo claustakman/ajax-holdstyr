@@ -1176,7 +1176,7 @@ function openEditGame(id, team) {
 
 function buildPlayerPickerHTML(active, selectedNames, numMap, gameId, team) {
   const g = DB.games.find(x => x.id === gameId);
-  const booked = (g && g.date) ? getBookedOnDate(g.date, gameId) : new Set();
+  const booked = (g && g.date) ? getBookedOnDate(g.date, gameId, team) : new Set();
   return '<div class="player-picker">' + active.map(p => {
     const sel = selectedNames.has(p.nickname);
     const num = numMap[p.nickname] || p.defaultNumber || '';
@@ -1317,12 +1317,14 @@ function loadLastGameForNew() {
 }
 
 // Returns set of player nicknames already booked on a given date (excluding one game id)
-function getBookedOnDate(date, excludeGameId) {
+function getBookedOnDate(date, excludeGameId, excludeTeam) {
   const booked = new Set();
   DB.games.forEach(g => {
-    if (g.date !== date || g.id === excludeGameId) return;
-    (g.team1.players||[]).forEach(p => { booked.add(p.name); if(p.nickname) booked.add(p.nickname); });
-    (g.team2.players||[]).forEach(p => { booked.add(p.name); if(p.nickname) booked.add(p.nickname); });
+    if (g.date !== date) return;
+    const skipTeam1 = g.id === excludeGameId && (excludeTeam === 'b' || !excludeTeam);
+    const skipTeam2 = g.id === excludeGameId && (excludeTeam === 'c' || !excludeTeam);
+    if (!skipTeam1) (g.team1.players||[]).forEach(p => { booked.add(p.name); if(p.nickname) booked.add(p.nickname); });
+    if (!skipTeam2) (g.team2.players||[]).forEach(p => { booked.add(p.name); if(p.nickname) booked.add(p.nickname); });
   });
   return booked;
 }
