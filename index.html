@@ -933,8 +933,8 @@ function buildGameDetailHTML(g, team) {
   // Actions
   h += '<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">';
   h += '<button class="btn btn-red btn-sm" onclick="deleteGame(\'' + g.id + '\')">🗑 Slet</button>';
-  h += '<button class="btn btn-ghost" style="flex:1" onclick="closeModal(\'game-modal\')">💾 Gem</button>';
   h += '<button class="btn btn-green" style="flex:1" onclick="markDone(\'' + g.id + '\',\'' + team + '\')">' + (g.status==='done' ? '✓ Spillet' : '✅ Marker som spillet') + '</button>';
+  h += '<button class="btn btn-ghost" style="flex:1" onclick="closeModal(\'game-modal\')">💾 Gem</button>';
   h += '</div>';
   return h;
 }
@@ -1004,7 +1004,7 @@ function addCoachPrompt(id, team) {
   if (!g[key]) g[key] = [];
   const first = name.trim().split(/\s+/)[0]; // store first name only
   if (!g[key].includes(first)) g[key].push(first);
-  save(); openGame(id, team);
+  save(); renderGames(); openGame(id, team);
 }
 
 function addCoachFromSelect(id, team, sel) {
@@ -1014,14 +1014,14 @@ function addCoachFromSelect(id, team, sel) {
   const key = team === 'b' ? 'coachesB' : 'coachesC';
   if (!g[key]) g[key] = [];
   if (!g[key].includes(val)) g[key].push(val);
-  save(); openGame(id, team);
+  save(); renderGames(); openGame(id, team);
 }
 
 function removeCoach(id, team, idx) {
   const g = DB.games.find(x => x.id === id); if (!g) return;
   const key = team === 'b' ? 'coachesB' : 'coachesC';
   if (g[key]) g[key].splice(idx, 1);
-  save(); openGame(id, team);
+  save(); renderGames(); openGame(id, team);
 }
 
 function buildPSRows(g, team) {
@@ -1331,21 +1331,30 @@ function renderTeamConfig() {
   const el = document.getElementById('team-config-content');
   if (!el) return;
   if (!DB.settings) DB.settings = {};
-  const cfg = DB.settings.teamConfig || [
-    { slot: 'b', label: 'B', hsName: '', row: '' },
-    { slot: 'c', label: 'C', hsName: '', row: '' },
+  // Default: 3 empty slots numbered 1, 2, 3
+  const defaultCfg = [
+    { slot: 'b',  label: '1', hsName: '', row: '' },
+    { slot: 'c',  label: '2', hsName: '', row: '' },
+    { slot: 'b2', label: '3', hsName: '', row: '' },
   ];
+  const cfg = DB.settings.teamConfig || defaultCfg;
+  // Ensure 3 slots always exist
+  while (cfg.length < 3) cfg.push({ slot: 'b' + cfg.length, label: String(cfg.length + 1), hsName: '', row: '' });
   DB.settings.teamConfig = cfg;
 
-  let h = '';
+  let h = '<div style="display:grid;grid-template-columns:32px 1fr 80px;gap:6px;margin-bottom:6px;padding:0 2px">';
+  h += '<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase">#</div>';
+  h += '<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase">Holdsport holdnavn</div>';
+  h += '<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;text-align:center">Række</div>';
+  h += '</div>';
   cfg.forEach((t, i) => {
-    h += '<div style="display:grid;grid-template-columns:60px 1fr 80px;gap:8px;align-items:center;margin-bottom:10px">';
-    h += '<div style="font-weight:700;font-size:14px">Hold ' + t.label + '</div>';
-    h += '<input class="inline-input" style="font-size:12px" placeholder="Holdsport holdnavn (fx Ajax U11 Piger B)" id="tc-hsname-' + i + '" value="' + (t.hsName||'') + '">';
-    h += '<input class="inline-input" style="font-size:12px;text-align:center" placeholder="Række" id="tc-row-' + i + '" value="' + (t.row||'') + '">';
+    h += '<div style="display:grid;grid-template-columns:32px 1fr 80px;gap:6px;align-items:center;margin-bottom:8px">';
+    h += '<div style="width:26px;height:26px;border-radius:50%;background:rgba(204,16,51,.2);border:1px solid rgba(204,16,51,.4);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:var(--ajax-red)">' + (i+1) + '</div>';
+    h += '<input class="inline-input" style="font-size:12px" placeholder="fx Ajax U11 Piger B" id="tc-hsname-' + i + '" value="' + (t.hsName||'') + '">';
+    h += '<input class="inline-input" style="font-size:12px;text-align:center" placeholder="fx A" id="tc-row-' + i + '" value="' + (t.row||'') + '">';
     h += '</div>';
-    h += '<div style="font-size:11px;color:var(--muted);margin-bottom:12px;padding-left:68px">Rækken vises i stedet for B/C i oversigten (fx "A", "B", "Serie 3")</div>';
   });
+  h += '<div style="font-size:11px;color:var(--muted);margin:4px 0 12px">Rækken vises i oversigten i stedet for B/C (fx "A", "B", "Serie 3")</div>';
   h += '<button class="btn btn-ajax btn-sm" style="width:100%" onclick="saveTeamConfig()">💾 Gem holdkonfiguration</button>';
   el.innerHTML = h;
 }
