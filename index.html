@@ -802,7 +802,10 @@ function renderGames() {
     const displayCount = (g.status === 'done' && g.playerStatus && Object.keys(g.playerStatus).length)
       ? Object.values(g.playerStatus).filter(s => s !== 'cancelled').length
       : players.length;
+    // Double-booking badge: check if any player on this team is also in another game same day
+    const doubleBooked = players.filter(p => getBookedOnDate(g.date, g.id, team).has(p.name));
     h += '<span class="badge badge-muted">👕 ' + displayCount + '</span>';
+    if (doubleBooked.length) h += '<span class="badge" style="background:rgba(245,166,35,.2);color:#F5A623;border:1px solid rgba(245,166,35,.4)">⚠️ ' + doubleBooked.length + ' dobbelt</span>';
     if (cancelCount) h += '<span class="badge badge-warn">❌ ' + cancelCount + '</span>';
     const coaches = (isB ? g.coachesB : g.coachesC) || [];
     if (coaches.length) h += '<span class="badge" style="background:rgba(255,255,255,.05);color:var(--muted);border:1px solid var(--border)">👔 ' + coaches.join(', ') + '</span>';
@@ -879,7 +882,11 @@ function buildGameDetailHTML(g, team) {
   h += '<div class="section-label">👕 Opstilling</div>';
   h += '<div style="margin-bottom:10px">';
   if (players.length) {
-    players.forEach(p => { h += '<span class="player-pill"><span class="pill-num">#' + p.slot + '</span>' + p.name + '</span>'; });
+    const bookedInDetail = getBookedOnDate(g.date, g.id, team);
+    players.forEach(p => {
+      const dbl = bookedInDetail.has(p.name) ? ' <span style="color:#F5A623;font-size:10px;font-weight:700">⚠️</span>' : '';
+      h += '<span class="player-pill"><span class="pill-num">#' + p.slot + '</span>' + p.name + dbl + '</span>';
+    });
   } else {
     h += '<span style="color:var(--muted);font-size:13px">Ingen spillere planlagt</span>';
   }
