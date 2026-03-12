@@ -252,6 +252,19 @@ main { padding: 16px; max-width: 860px; margin: 0 auto; }
 .gas-name{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .gas-num{text-align:center;font-size:12px;color:var(--muted)}
 .gas-input{width:40px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:3px 4px;font-size:13px;text-align:center;outline:none;font-family:'Barlow Condensed',sans-serif;font-weight:700}.gas-input:focus{border-color:var(--ajax-red)}
+
+/* Holdsport modal rows */
+.hs-activity-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);margin-bottom:6px;background:rgba(255,255,255,.02);cursor:pointer}
+.hs-activity-row:hover{background:rgba(255,255,255,.05)}
+.hs-already{opacity:.45}
+.hs-mapping-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.hs-mapping-hs{font-size:13px;font-weight:600;flex:1;min-width:100px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hs-mapping-arrow{color:var(--muted);font-size:14px;flex-shrink:0}
+.hs-mapping-select{flex:1;min-width:140px;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:7px;color:var(--text);padding:5px 8px;font-family:'Barlow',sans-serif;font-size:12px;outline:none;cursor:pointer}
+.hs-mapping-select option{background:var(--card)}
+.hs-import-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:7px;border:1px solid rgba(66,211,146,.35);background:rgba(66,211,146,.12);color:#2ECC71;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;transition:all .2s}
+.hs-import-btn:hover{background:rgba(66,211,146,.25)}
+
 </style>
 </head>
 <body>
@@ -271,7 +284,7 @@ main { padding: 16px; max-width: 860px; margin: 0 auto; }
 
 <!-- KAMPE -->
 <div id="page-kampe" class="page active">
-  <div class="flex-between" style="margin-bottom:12px"><div class="page-title">Kampe</div></div>
+  <div class="flex-between" style="margin-bottom:12px"><div class="page-title">Kampe</div><button class="hs-import-btn" onclick="hsOpenImport()">📥 Holdsport</button></div>
   <div class="sync-bar" id="sync-bar">
   <div class="sync-dot sync-idle" id="sync-dot"></div>
   <div class="sync-status"><span id="sync-status-text">Indlæser Google API...</span></div>
@@ -392,6 +405,7 @@ main { padding: 16px; max-width: 860px; margin: 0 auto; }
 <!-- EKSPORT -->
 <div id="page-eksport" class="page">
   <div class="page-title">Eksport &amp; Backup</div>
+  <div class="card" id="hs-settings"></div>
   <div class="card">
     <div class="card-title">CSV Eksport</div>
     <button class="btn btn-green" style="width:100%;margin-bottom:8px" onclick="exportCSV('games')">📋 Kampoversigt (CSV)</button>
@@ -425,6 +439,11 @@ main { padding: 16px; max-width: 860px; margin: 0 auto; }
     </div>
   </div>
 </div>
+
+<div class="modal-overlay" id="hs-modal">
+  <div class="modal" id="hs-modal-content" style="max-height:85vh;overflow-y:auto"></div>
+</div>
+
 <div class="toast" id="toast"></div>
 <script>const SEED = {"players":[{"nickname":"Aleksandra","fullName":"Aleksandra Popovic","birthYear":2015,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Anastasia","fullName":"Anastasia Hernandez Vujcic","birthYear":2015,"active":false,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Barbara","fullName":"Barbara Christensen","birthYear":2014,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Bella","fullName":"Bella Thygesen","birthYear":2015,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Ela","fullName":"Ela Zulic","birthYear":2014,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Ella","fullName":"Ella Ditlev Graversgaard","birthYear":2015,"active":false,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Emmy","fullName":"Emmy Enemark Christiansen","birthYear":2015,"active":false,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Esther","fullName":"Esther Ivic Jensen","birthYear":2015,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Gry","fullName":"Gry Myrup","birthYear":2014,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Hadya","fullName":"Hadya Akhgar","birthYear":2015,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Henny","fullName":"Henny Kinch","birthYear":2015,"active":false,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Ingeborg","fullName":"Ingeborg Ponyo La Cour-Mosholt","birthYear":2014,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Lana","fullName":"Lana Ljubez","birthYear":2015,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Laura","fullName":"Laura Murati","birthYear":2015,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Marie","fullName":"Marie Hindsgaul Stobbe","birthYear":2015,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Marley","fullName":"Marley Frost","birthYear":2015,"active":false,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Maya H","fullName":"Maya Helgren","birthYear":2014,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Maya S","fullName":"Maya Ndingoli Ki Sjøgren","birthYear":2015,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Miabella","fullName":"Miabella Grage","birthYear":2015,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Nor","fullName":"Nor Ahrengot","birthYear":2016,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Philippa","fullName":"Philippa-Isabelle Er Jensen","birthYear":2014,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Rosa","fullName":"Rosa-Mynte Ryborg Mortensen","birthYear":2014,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Salli","fullName":"Salli Egegaard","birthYear":2015,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Sally","fullName":"Sally Skov","birthYear":2014,"active":false,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Sara Liv","fullName":"Sara Liv Pilipczuk Rasmussen","birthYear":2014,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Signe","fullName":"Signe Jæger","birthYear":2014,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Sofia","fullName":"Sofia Olivia Holm-Højer","birthYear":2015,"active":false,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Vera","fullName":"Vera Lilli Bjerre","birthYear":2014,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Vilda","fullName":"Vilda Breitenbach","birthYear":2014,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Vilde","fullName":"Vilde Egegaard","birthYear":2015,"active":false,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Vilja","fullName":"Vilja Rasmussen","birthYear":2014,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Vilma","fullName":"Vilma Kej Grønby","birthYear":2014,"active":true,"isLoanPlayer":false,"defaultNumber":null},{"nickname":"Anna (U9)","fullName":"Anna (U9)","birthYear":null,"active":true,"isLoanPlayer":true,"defaultNumber":null},{"nickname":"Emelinn","fullName":"Emelinn","birthYear":null,"active":true,"isLoanPlayer":true,"defaultNumber":null}],"games":[{"date":"2026-01-04","team1":{"opponent":null,"players":[]},"team2":{"opponent":"Ajax - Gladsaxe","players":[{"slot":1,"name":"Maya S","factor":1},{"slot":2,"name":"Vilja","factor":1},{"slot":3,"name":"Miabella","factor":1},{"slot":4,"name":"Vilma","factor":1},{"slot":5,"name":"Maya H","factor":1},{"slot":6,"name":"Ingeborg","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":9,"name":"Vilda","factor":1}]},"cancellations":["Hadya (no show)"],"benched":["Vera"],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g001"},{"date":"2026-01-11","team1":{"opponent":"Nykøbing F - træningslejr Fejø","players":[{"slot":1,"name":"Signe","factor":1},{"slot":2,"name":"Vilma","factor":1},{"slot":3,"name":"Ingeborg","factor":1},{"slot":4,"name":"Sara Liv","factor":1},{"slot":5,"name":"Marie","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Vilja","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":9,"name":"Rosa","factor":1},{"slot":10,"name":"Philippa","factor":1},{"slot":11,"name":"Vilda","factor":1},{"slot":12,"name":"Nor","factor":1},{"slot":13,"name":"Anna (U9)","factor":1}]},"team2":{"opponent":null,"players":[]},"cancellations":[],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g002"},{"date":"2026-01-24","team1":{"opponent":"HIK3","players":[{"slot":2,"name":"Vilma","factor":1},{"slot":4,"name":"Ingeborg","factor":1},{"slot":5,"name":"Marie","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":9,"name":"Philippa","factor":1},{"slot":10,"name":"Rosa","factor":1}]},"team2":{"opponent":"Øresund 3","players":[{"slot":1,"name":"Gry","factor":1},{"slot":3,"name":"Lana","factor":1},{"slot":4,"name":"Anna (U9)","factor":1},{"slot":5,"name":"Hadya","factor":1},{"slot":6,"name":"Ingeborg","factor":1},{"slot":7,"name":"Vera","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":9,"name":"Maya H","factor":1},{"slot":10,"name":"Marie","factor":1}]},"cancellations":["Sara Liv"],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g003"},{"date":"2026-02-01","team1":{"opponent":"VSH2","players":[{"slot":2,"name":"Vilma","factor":1},{"slot":3,"name":"Maya S","factor":1},{"slot":4,"name":"Ingeborg","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":9,"name":"Rosa","factor":1},{"slot":10,"name":"Philippa","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"team2":{"opponent":"Ydun 3","players":[{"slot":1,"name":"Salli","factor":1},{"slot":3,"name":"Maya S","factor":1},{"slot":4,"name":"Ingeborg","factor":1},{"slot":5,"name":"Vilda","factor":1},{"slot":6,"name":"Hadya","factor":1},{"slot":7,"name":"Lana","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":10,"name":"Vera","factor":1}]},"cancellations":["Miabella","Laura"],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g004"},{"date":"2026-02-04","team1":{"opponent":"Lyngby Hk","players":[{"slot":1,"name":"Signe","factor":1},{"slot":2,"name":"Vilma","factor":1},{"slot":3,"name":"Maya S","factor":1},{"slot":5,"name":"Marie","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":9,"name":"Rosa","factor":1},{"slot":10,"name":"Philippa","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"team2":{"opponent":null,"players":[]},"cancellations":[],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g005"},{"date":"2026-02-08","team1":{"opponent":"Rødovre HK","players":[{"slot":2,"name":"Vilma","factor":1},{"slot":3,"name":"Maya S","factor":1},{"slot":4,"name":"Ingeborg","factor":1},{"slot":5,"name":"Marie","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":10,"name":"Philippa","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"team2":{"opponent":null,"players":[]},"cancellations":["Signe (syg)"],"benched":["Esther"],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g006"},{"date":"2026-02-21","team1":{"opponent":"Københavns HK","players":[{"slot":2,"name":"Vilma","factor":1},{"slot":3,"name":"Maya S","factor":1},{"slot":4,"name":"Ingeborg","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":10,"name":"Philippa","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"team2":{"opponent":"Københavns HK4","players":[{"slot":1,"name":"Laura","factor":1},{"slot":2,"name":"Vilda","factor":1},{"slot":3,"name":"Maya S","factor":1},{"slot":4,"name":"Ingeborg","factor":1},{"slot":5,"name":"Lana","factor":1},{"slot":7,"name":"Anna (U9)","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":9,"name":"Rosa","factor":1}]},"cancellations":["Vilja (syg)","Barbara"],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g007"},{"date":"2026-02-22","team1":{"opponent":null,"players":[]},"team2":{"opponent":"HIK4","players":[{"slot":1,"name":"Signe","factor":1},{"slot":2,"name":"Vilda","factor":1},{"slot":3,"name":"Maya S","factor":1},{"slot":4,"name":"Ingeborg","factor":1},{"slot":5,"name":"Marie","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":9,"name":"Rosa","factor":1}]},"cancellations":["Barbara"],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g008"},{"date":"2026-03-01","team1":{"opponent":"FIF3","players":[{"slot":1,"name":"Signe","factor":1},{"slot":2,"name":"Vilma","factor":1},{"slot":3,"name":"Vilja","factor":1},{"slot":5,"name":"Sara Liv","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":8,"name":"Vilda","factor":1},{"slot":9,"name":"Rosa","factor":1},{"slot":10,"name":"Philippa","factor":1}]},"team2":{"opponent":"Lyngby HK2","players":[{"slot":1,"name":"Lana","factor":1},{"slot":2,"name":"Lana","factor":1},{"slot":3,"name":"Maya S","factor":1},{"slot":4,"name":"Hadya","factor":1},{"slot":5,"name":"Ingeborg","factor":1},{"slot":6,"name":"Salli","factor":1},{"slot":7,"name":"Nor","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"cancellations":[],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g009"},{"date":"2026-03-14","team1":{"opponent":"Tårnby 2","players":[{"slot":1,"name":"Signe","factor":1},{"slot":2,"name":"Vilma","factor":1},{"slot":3,"name":"Maya S","factor":1},{"slot":4,"name":"Ingeborg","factor":1},{"slot":5,"name":"Marie","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"team2":{"opponent":null,"players":[]},"cancellations":[],"benched":[],"notes":null,"status":"planned","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g010"},{"date":"2026-03-21","team1":{"opponent":null,"players":[]},"team2":{"opponent":"Freja HK","players":[]},"cancellations":[],"benched":[],"notes":null,"status":"planned","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g011"},{"date":"2026-03-22","team1":{"opponent":"Herlev 2","players":[]},"team2":{"opponent":"Amager 2","players":[]},"cancellations":[],"benched":[],"notes":null,"status":"planned","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g012"},{"date":"2026-03-29","team1":{"opponent":null,"players":[]},"team2":{"opponent":"KFUM","players":[{"slot":9,"name":"Rosa","factor":1}]},"cancellations":[],"benched":[],"notes":null,"status":"planned","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g013"},{"date":"2026-03-29","team1":{"opponent":"Påskecup","players":[]},"team2":{"opponent":null,"players":[]},"cancellations":[],"benched":[],"notes":null,"status":"planned","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g014"},{"date":"2025-05-25","team1":{"opponent":"Herlev træningstævne B","players":[{"slot":1,"name":"Aleksandra","factor":2},{"slot":2,"name":"Philippa","factor":2},{"slot":3,"name":"Gry","factor":2},{"slot":4,"name":"Marie","factor":2},{"slot":5,"name":"Maya S","factor":2},{"slot":6,"name":"Vilma","factor":2},{"slot":7,"name":"Ela","factor":2}]},"team2":{"opponent":"Herlev træningstævne C","players":[{"slot":1,"name":"Emmy","factor":2},{"slot":2,"name":"Bella","factor":2},{"slot":3,"name":"Miabella","factor":2},{"slot":4,"name":"Sara Liv","factor":2},{"slot":5,"name":"Salli","factor":2},{"slot":6,"name":"Vilde","factor":2},{"slot":7,"name":"Vilda","factor":2},{"slot":8,"name":"Vilja","factor":2}]},"cancellations":[],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g015"},{"date":"2025-06-07","team1":{"opponent":"Albertslund cup B","players":[{"slot":1,"name":"Aleksandra","factor":4},{"slot":2,"name":"Esther","factor":4},{"slot":3,"name":"Gry","factor":4},{"slot":4,"name":"Maya S","factor":4},{"slot":5,"name":"Ela","factor":4},{"slot":6,"name":"Philippa","factor":4},{"slot":7,"name":"Signe","factor":2}]},"team2":{"opponent":"Albertslund cup C","players":[{"slot":1,"name":"Anastasia","factor":4},{"slot":2,"name":"Ingeborg","factor":4},{"slot":3,"name":"Rosa","factor":4},{"slot":4,"name":"Vilja","factor":4},{"slot":5,"name":"Nor","factor":4},{"slot":6,"name":"Signe","factor":4},{"slot":7,"name":"Lana","factor":2}]},"cancellations":[],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g016"},{"date":"2025-06-12","team1":{"opponent":"Rødovre B","players":[{"slot":1,"name":"Aleksandra","factor":1},{"slot":2,"name":"Esther","factor":1},{"slot":3,"name":"Maya S","factor":1},{"slot":4,"name":"Gry","factor":1},{"slot":5,"name":"Vilma","factor":1},{"slot":6,"name":"Ela","factor":1},{"slot":7,"name":"Marie","factor":1},{"slot":8,"name":"Signe","factor":1}]},"team2":{"opponent":"Rødovre C","players":[{"slot":1,"name":"Henny","factor":1},{"slot":2,"name":"Ingeborg","factor":1},{"slot":3,"name":"Lana","factor":1},{"slot":4,"name":"Miabella","factor":1},{"slot":5,"name":"Nor","factor":1},{"slot":6,"name":"Rosa","factor":1},{"slot":7,"name":"Salli","factor":1},{"slot":8,"name":"Sofia","factor":1},{"slot":9,"name":"Vilda","factor":1},{"slot":10,"name":"Vilde","factor":1}]},"cancellations":[],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g017"},{"date":"2025-08-23","team1":{"opponent":"Amager Cup","players":[{"slot":1,"name":"Aleksandra","factor":5},{"slot":2,"name":"Ela","factor":5},{"slot":3,"name":"Gry","factor":5},{"slot":4,"name":"Marie","factor":5},{"slot":5,"name":"Maya S","factor":5},{"slot":6,"name":"Philippa","factor":5},{"slot":7,"name":"Vilma","factor":2},{"slot":8,"name":"Rosa","factor":5},{"slot":9,"name":"Salli","factor":5}]},"team2":{"opponent":null,"players":[]},"cancellations":[],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g018"},{"date":"2025-09-10","team1":{"opponent":"FIF B","players":[{"slot":1,"name":"Gry","factor":1},{"slot":2,"name":"Esther","factor":1},{"slot":3,"name":"Aleksandra","factor":1},{"slot":4,"name":"Vilma","factor":1},{"slot":5,"name":"Marie","factor":1},{"slot":6,"name":"Maya S","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":8,"name":"Salli","factor":1},{"slot":9,"name":"Rosa","factor":1}]},"team2":{"opponent":"FIF C","players":[{"slot":1,"name":"Vilda","factor":1},{"slot":2,"name":"Ingeborg","factor":1},{"slot":3,"name":"Lana","factor":1},{"slot":4,"name":"Bella","factor":1},{"slot":5,"name":"Signe","factor":1},{"slot":6,"name":"Vilja","factor":1},{"slot":7,"name":"Miabella","factor":1},{"slot":8,"name":"Hadya","factor":1},{"slot":9,"name":"Emmy","factor":1}]},"cancellations":[],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g019"},{"date":"2025-09-14","team1":{"opponent":"Niveaustævne B","players":[{"slot":1,"name":"Signe","factor":2},{"slot":2,"name":"Vilma","factor":2},{"slot":3,"name":"Maya S","factor":2},{"slot":5,"name":"Marie","factor":2},{"slot":6,"name":"Gry","factor":2},{"slot":7,"name":"Ela","factor":2},{"slot":9,"name":"Rosa","factor":2},{"slot":11,"name":"Aleksandra","factor":2}]},"team2":{"opponent":"Niveaustævne D","players":[{"slot":2,"name":"Vilja","factor":2},{"slot":3,"name":"Bella","factor":2},{"slot":4,"name":"Laura","factor":2},{"slot":5,"name":"Vera","factor":2},{"slot":6,"name":"Ingeborg","factor":2},{"slot":7,"name":"Sara Liv","factor":2},{"slot":8,"name":"Salli","factor":2},{"slot":9,"name":"Rosa","factor":2},{"slot":10,"name":"Lana","factor":2}]},"cancellations":["Esther (syg)"],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g020"},{"date":"2025-09-19","team1":{"opponent":"Næstved cup","players":[{"slot":1,"name":"Signe","factor":5},{"slot":2,"name":"Vilda","factor":5},{"slot":3,"name":"Maya S","factor":5},{"slot":4,"name":"Ingeborg","factor":5},{"slot":5,"name":"Marie","factor":5},{"slot":6,"name":"Gry","factor":5},{"slot":7,"name":"Ela","factor":5},{"slot":8,"name":"Esther","factor":5},{"slot":9,"name":"Rosa","factor":5},{"slot":11,"name":"Aleksandra","factor":5}]},"team2":{"opponent":null,"players":[]},"cancellations":[],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g021"},{"date":"2025-09-28","team1":{"opponent":"Ajax - FIF","players":[{"slot":1,"name":"Signe","factor":1},{"slot":5,"name":"Marie","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":8,"name":"Salli","factor":1},{"slot":9,"name":"Rosa","factor":1},{"slot":10,"name":"Philippa","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"team2":{"opponent":null,"players":[]},"cancellations":[],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g022"},{"date":"2025-10-05","team1":{"opponent":"KH - Ajax","players":[{"slot":2,"name":"Vilma","factor":1},{"slot":3,"name":"Maya S","factor":1},{"slot":5,"name":"Marie","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":9,"name":"Rosa","factor":1},{"slot":10,"name":"Philippa","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"team2":{"opponent":null,"players":[]},"cancellations":[],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g023"},{"date":"2025-10-09","team1":{"opponent":null,"players":[]},"team2":{"opponent":"Herlev 3 - Ajax 2","players":[{"slot":2,"name":"Vilma","factor":1},{"slot":3,"name":"Anna (U9)","factor":1},{"slot":4,"name":"Emmy","factor":1},{"slot":5,"name":"Sara Liv","factor":1},{"slot":6,"name":"Sally","factor":1},{"slot":7,"name":"Marie","factor":1},{"slot":8,"name":"Vilda","factor":1},{"slot":9,"name":"Nor","factor":1}]},"cancellations":["Ingeborg (syg på dagen)","Salli (motivation)","Esther"],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g024"},{"date":"2025-10-19","team1":{"opponent":null,"players":[]},"team2":{"opponent":"Amager 2 - Ajax 2","players":[{"slot":2,"name":"Emmy","factor":1},{"slot":3,"name":"Maya S","factor":1},{"slot":4,"name":"Ingeborg","factor":1},{"slot":5,"name":"Miabella","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Sara Liv","factor":1},{"slot":9,"name":"Rosa","factor":1},{"slot":10,"name":"Vilja","factor":1}]},"cancellations":["Hadya (no show)"],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g025"},{"date":"2025-10-25","team1":{"opponent":"Ajax - Ydun 2","players":[{"slot":1,"name":"Signe","factor":1},{"slot":2,"name":"Vilma","factor":1},{"slot":5,"name":"Marie","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":9,"name":"Rosa","factor":1},{"slot":10,"name":"Philippa","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"team2":{"opponent":"Ajax 2 - Freja HK","players":[{"slot":2,"name":"Maya S","factor":1},{"slot":3,"name":"Vilda","factor":1},{"slot":4,"name":"Nor","factor":1},{"slot":5,"name":"Vera","factor":1},{"slot":6,"name":"Ingeborg","factor":1},{"slot":7,"name":"Laura","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":9,"name":"Vilja","factor":1},{"slot":10,"name":"Lana","factor":1}]},"cancellations":["Salli (syg)"],"benched":["Bella","Sara Liv","Emmy"],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g026"},{"date":"2025-11-02","team1":{"opponent":null,"players":[]},"team2":{"opponent":"Ajax 2 - KBH Håndbold 3","players":[{"slot":1,"name":"Signe","factor":1},{"slot":2,"name":"Nor","factor":1},{"slot":3,"name":"Laura","factor":1},{"slot":7,"name":"Sara Liv","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":9,"name":"Vilja","factor":1},{"slot":10,"name":"Vilda","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"cancellations":["Salli","Emmy","Ingeborg (spillede ikke pga mavesmerter )"],"benched":["Nor","Lana","Rosa","Miabella","Bella (skal så sidde over 2 kampe i træk)"],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g027"},{"date":"2025-11-09","team1":{"opponent":"Tårnby HK - Ajax","players":[{"slot":1,"name":"Maya S","factor":1},{"slot":2,"name":"Vilma","factor":1},{"slot":4,"name":"Vilja","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":9,"name":"Salli","factor":1},{"slot":10,"name":"Philippa","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"team2":{"opponent":null,"players":[]},"cancellations":["Marie (syg)","Ela (syg)"],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g028"},{"date":"2025-11-22","team1":{"opponent":"HIK2 - Ajax","players":[{"slot":1,"name":"Signe","factor":1},{"slot":3,"name":"Maya S","factor":1},{"slot":5,"name":"Marie","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":9,"name":"Rosa","factor":1},{"slot":10,"name":"Philippa","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"team2":{"opponent":"Ajax 2 - FIF 2","players":[{"slot":1,"name":"Laura","factor":1},{"slot":2,"name":"Miabella","factor":1},{"slot":3,"name":"Vilda","factor":1},{"slot":5,"name":"Vera","factor":1},{"slot":6,"name":"Ingeborg","factor":1},{"slot":7,"name":"Lana","factor":1},{"slot":8,"name":"Salli","factor":1},{"slot":9,"name":"Vilja","factor":1}]},"cancellations":["Bella"],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g029"},{"date":"2025-11-23","team1":{"opponent":"Ajax - VSH 3","players":[{"slot":1,"name":"Signe","factor":1},{"slot":3,"name":"Maya S","factor":1},{"slot":5,"name":"Marie","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":9,"name":"Rosa","factor":1},{"slot":10,"name":"Philippa","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"team2":{"opponent":"AB - Ajax 2","players":[{"slot":1,"name":"Laura","factor":1},{"slot":2,"name":"Sara Liv","factor":1},{"slot":3,"name":"Vilda","factor":1},{"slot":4,"name":"Vilma","factor":1},{"slot":5,"name":"Vera","factor":1},{"slot":6,"name":"Ingeborg","factor":1},{"slot":7,"name":"Lana","factor":1},{"slot":8,"name":"Salli","factor":1}]},"cancellations":["Marie"],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g030"},{"date":"2025-11-30","team1":{"opponent":"Ajax - Brøndby","players":[{"slot":1,"name":"Signe","factor":1},{"slot":2,"name":"Vilma","factor":1},{"slot":3,"name":"Maya S","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":9,"name":"Rosa","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"team2":{"opponent":"Ajax 2 - LSH","players":[{"slot":1,"name":"Laura","factor":1},{"slot":2,"name":"Sara Liv","factor":1},{"slot":3,"name":"Miabella","factor":1},{"slot":4,"name":"Nor","factor":1},{"slot":6,"name":"Ingeborg","factor":1},{"slot":7,"name":"Vera","factor":1},{"slot":8,"name":"Salli","factor":1},{"slot":9,"name":"Lana","factor":1},{"slot":10,"name":"Vilja","factor":1}]},"cancellations":[],"benched":["Vilda"],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g031"},{"date":"2025-12-07","team1":{"opponent":"Amager - Ajax","players":[{"slot":1,"name":"Signe","factor":1},{"slot":2,"name":"Vilma","factor":1},{"slot":5,"name":"Marie","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":9,"name":"Rosa","factor":1},{"slot":10,"name":"Philippa","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"team2":{"opponent":"KFUM - Ajax 2","players":[{"slot":1,"name":"Laura","factor":1},{"slot":2,"name":"Sara Liv","factor":1},{"slot":3,"name":"Marie","factor":1},{"slot":4,"name":"Lana","factor":1},{"slot":5,"name":"Esther","factor":1},{"slot":6,"name":"Ingeborg","factor":1},{"slot":7,"name":"Vilja","factor":1},{"slot":8,"name":"Salli","factor":1},{"slot":10,"name":"Vilda","factor":1}]},"cancellations":[],"benched":["Miabella"],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g032"},{"date":"2025-12-14","team1":{"opponent":"Greve - Ajax","players":[{"slot":1,"name":"Signe","factor":1},{"slot":3,"name":"Vilja","factor":1},{"slot":4,"name":"Emelinn","factor":1},{"slot":5,"name":"Marie","factor":1},{"slot":6,"name":"Gry","factor":1},{"slot":7,"name":"Ela","factor":1},{"slot":8,"name":"Esther","factor":1},{"slot":9,"name":"Rosa","factor":1},{"slot":10,"name":"Philippa","factor":1},{"slot":11,"name":"Aleksandra","factor":1}]},"team2":{"opponent":null,"players":[]},"cancellations":[],"benched":[],"notes":null,"status":"done","result":{},"playerStatus":{},"focus":["","",""],"wentWell":"","wentBad":"","id":"g033"}]};
 function clearFilters() {
@@ -444,12 +463,10 @@ let driveFileId = null;
 let tokenClient = null;
 let gapiReady = false;
 let gisReady = false;
-let syncPending = false;
 let lastSyncTime = null;
 let syncDebounceTimer = null;
 
 function initDriveSync() {
-  // Load GAPI
   const gapiScript = document.createElement('script');
   gapiScript.src = 'https://apis.google.com/js/api.js';
   gapiScript.onload = function() {
@@ -465,7 +482,6 @@ function initDriveSync() {
   };
   document.head.appendChild(gapiScript);
 
-  // Load GIS
   const gisScript = document.createElement('script');
   gisScript.src = 'https://accounts.google.com/gsi/client';
   gisScript.onload = function() {
@@ -479,7 +495,8 @@ function initDriveSync() {
         }
         updateSyncStatus('syncing', 'Logger ind...');
         findOrCreateDriveFile().then(function() {
-          loadFromDrive();
+          // After login: merge Drive data with local — local wins on conflict
+          mergeFromDrive();
         });
       }
     });
@@ -497,21 +514,16 @@ function maybeEnableSync() {
 }
 
 function driveLogin() {
-  if (!gapiReady || !gisReady) {
-    updateSyncStatus('error', 'Indlæser Google API...');
-    return;
-  }
+  if (!gapiReady || !gisReady) { updateSyncStatus('error', 'Indlæser Google API...'); return; }
   tokenClient.requestAccessToken({prompt: 'consent'});
 }
 
 function driveLogout() {
-  const token = gapi.client.getToken();
-  if (token) {
-    google.accounts.oauth2.revoke(token.access_token);
-    gapi.client.setToken(null);
-  }
-  driveFileId = null;
-  lastSyncTime = null;
+  try {
+    const token = gapi.client.getToken();
+    if (token) { google.accounts.oauth2.revoke(token.access_token); gapi.client.setToken(null); }
+  } catch(e) {}
+  driveFileId = null; lastSyncTime = null;
   updateSyncStatus('idle', 'Ikke logget ind');
   document.getElementById('sync-login-btn').style.display = 'inline-flex';
   document.getElementById('sync-logout-btn').style.display = 'none';
@@ -530,99 +542,84 @@ function findOrCreateDriveFile() {
     q: "name='" + DRIVE_FILENAME + "'"
   }).then(function(response) {
     const files = response.result.files;
-    if (files && files.length > 0) {
-      driveFileId = files[0].id;
-      return Promise.resolve();
-    } else {
-      return createDriveFile();
-    }
+    if (files && files.length > 0) { driveFileId = files[0].id; return Promise.resolve(); }
+    else { return createDriveFile(); }
   });
 }
 
 function createDriveFile() {
-  const metadata = {
-    name: DRIVE_FILENAME,
-    parents: [DRIVE_FOLDER],
-    mimeType: 'application/json'
-  };
+  const metadata = { name: DRIVE_FILENAME, parents: [DRIVE_FOLDER], mimeType: 'application/json' };
   const content = JSON.stringify(DB);
   const boundary = 'ajax_holdstyr_boundary';
   const body = '--' + boundary + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' +
     JSON.stringify(metadata) + '\r\n--' + boundary + '\r\nContent-Type: application/json\r\n\r\n' +
     content + '\r\n--' + boundary + '--';
-
   return gapi.client.request({
     path: 'https://www.googleapis.com/upload/drive/v3/files',
     method: 'POST',
     params: {uploadType: 'multipart'},
     headers: {'Content-Type': 'multipart/related; boundary=' + boundary},
     body: body
-  }).then(function(response) {
-    driveFileId = response.result.id;
-  });
+  }).then(function(response) { driveFileId = response.result.id; });
 }
 
-function loadFromDrive() {
-  if (!driveFileId) return Promise.resolve();
-  updateSyncStatus('syncing', 'Henter data...');
-  return gapi.client.drive.files.get({
-    fileId: driveFileId,
-    alt: 'media'
-  }).then(function(response) {
+// Merge Drive data into local DB — local changes win, Drive fills in missing games
+function mergeFromDrive() {
+  if (!driveFileId) return;
+  updateSyncStatus('syncing', 'Synkroniserer...');
+  gapi.client.drive.files.get({ fileId: driveFileId, alt: 'media' }).then(function(response) {
     try {
-      const remoteData = typeof response.result === 'string'
-        ? JSON.parse(response.result)
-        : response.result;
-      if (remoteData && remoteData.games && remoteData.players) {
-        DB = remoteData;
-        save();
-        renderGames();
-        if (document.getElementById('page-spillere').classList.contains('active')) renderPlayers();
-        if (document.getElementById('page-statistik').classList.contains('active')) renderStats();
-        lastSyncTime = new Date();
-        updateSyncStatus('ok', 'Synkroniseret ' + fmtTime(lastSyncTime));
-        document.getElementById('sync-login-btn').style.display = 'none';
-        document.getElementById('sync-logout-btn').style.display = 'inline-flex';
-        document.getElementById('sync-manual-btn').style.display = 'inline-flex';
-        showToast('✓ Data hentet fra Google Drive');
-      }
+      const remote = typeof response.result === 'string' ? JSON.parse(response.result) : response.result;
+      if (!remote || !remote.games || !remote.players) throw new Error('Ugyldigt format');
+
+      // Merge games: local game wins if same id exists in both
+      const localIds = new Set(DB.games.map(g => g.id));
+      remote.games.forEach(rg => { if (!localIds.has(rg.id)) DB.games.push(rg); });
+
+      // Merge players: local player wins if same nickname exists in both
+      const localNicks = new Set(DB.players.map(p => p.nickname));
+      remote.players.forEach(rp => { if (!localNicks.has(rp.nickname)) DB.players.push(rp); });
+
+      localStorage.setItem('ajax_holdstyr_v5', JSON.stringify(DB));
+      lastSyncTime = new Date();
+      updateSyncStatus('ok', 'Synkroniseret ' + fmtTime(lastSyncTime));
+      document.getElementById('sync-login-btn').style.display = 'none';
+      document.getElementById('sync-logout-btn').style.display = 'inline-flex';
+      document.getElementById('sync-manual-btn').style.display = 'inline-flex';
+      renderGames();
+      if (document.getElementById('page-spillere').classList.contains('active')) renderPlayers();
+      if (document.getElementById('page-statistik').classList.contains('active')) renderStats();
+      showToast('✓ Synkroniseret med Google Drive');
+      // Push merged result back to Drive
+      doSaveToDrive();
     } catch(e) {
-      updateSyncStatus('error', 'Fejl ved indlæsning');
+      updateSyncStatus('error', 'Fejl ved synkronisering');
     }
-  }).catch(function(err) {
-    updateSyncStatus('error', 'Netværksfejl');
-  });
+  }).catch(function() { updateSyncStatus('error', 'Netværksfejl'); });
 }
 
 function saveToDrive() {
   if (!isSignedIn() || !driveFileId) return;
   clearTimeout(syncDebounceTimer);
-  syncDebounceTimer = setTimeout(function() {
-    doSaveToDrive();
-  }, 1500);
+  syncDebounceTimer = setTimeout(doSaveToDrive, 1500);
 }
 
 function doSaveToDrive() {
   if (!isSignedIn() || !driveFileId) return;
   updateSyncStatus('syncing', 'Gemmer...');
-  const content = JSON.stringify(DB);
   gapi.client.request({
     path: 'https://www.googleapis.com/upload/drive/v3/files/' + driveFileId,
     method: 'PATCH',
     params: {uploadType: 'media'},
     headers: {'Content-Type': 'application/json'},
-    body: content
+    body: JSON.stringify(DB)
   }).then(function() {
     lastSyncTime = new Date();
     updateSyncStatus('ok', 'Gemt ' + fmtTime(lastSyncTime));
-  }).catch(function() {
-    updateSyncStatus('error', 'Gem fejlede – prøv igen');
-  });
+  }).catch(function() { updateSyncStatus('error', 'Gem fejlede – prøv igen'); });
 }
 
-function fmtTime(d) {
-  return d.toLocaleTimeString('da-DK', {hour: '2-digit', minute: '2-digit'});
-}
+function fmtTime(d) { return d.toLocaleTimeString('da-DK', {hour: '2-digit', minute: '2-digit'}); }
 
 function updateSyncStatus(state, msg) {
   const el = document.getElementById('sync-status-text');
@@ -631,8 +628,6 @@ function updateSyncStatus(state, msg) {
   el.textContent = msg;
   dot.className = 'sync-dot sync-' + state;
 }
-
-
 
 
 let DB = loadData();
@@ -838,6 +833,7 @@ function buildGameDetailHTML(g, team) {
   }
   h += ' <button class="copy-btn" onclick="copyLineupToNew(\'' + team + '\',\'' + g.id + '\')">📋 Brug til ny kamp</button>';
   h += ' <button class="copy-btn" style="border-color:rgba(204,16,51,.4);background:rgba(204,16,51,.08);color:var(--ajax-red)" onclick="openEditGame(\'' + g.id + '\',\'' + team + '\')">✏️ Rediger</button>';
+    if (g.hsId) h += ' <button class="copy-btn" style="border-color:rgba(66,211,146,.35);background:rgba(66,211,146,.08);color:#2ECC71" onclick="hsImportAttendees(\'' + g.id + '\',\'' + team + '\')">📥 Holdsport tilmeldte</button>';
   h += '</div>';
 
   // Participation
@@ -1049,16 +1045,20 @@ function openEditGame(id, team) {
 }
 
 function buildPlayerPickerHTML(active, selectedNames, numMap, gameId, team) {
+  const g = DB.games.find(x => x.id === gameId);
+  const booked = (g && g.date) ? getBookedOnDate(g.date, gameId) : new Set();
   return '<div class="player-picker">' + active.map(p => {
     const sel = selectedNames.has(p.nickname);
     const num = numMap[p.nickname] || p.defaultNumber || '';
     const yr = p.birthYear ? ' ' + p.birthYear : '';
+    const isDouble = sel && booked.has(p.nickname);
+    const doubleFlag = isDouble ? ' <span style="color:#F5A623;font-size:10px;font-weight:700;background:rgba(245,166,35,.15);border:1px solid rgba(245,166,35,.4);border-radius:4px;padding:1px 5px">⚠️ Dobbelt</span>' : '';
     return '<div class="picker-row ' + (sel?'sel':'') + '" onclick="togglePickerPlayer(\'' + p.nickname + '\',\'' + gameId + '\',\'' + team + '\')" id="pr-' + safeId(p.nickname) + '">'
       + '<div class="picker-check">' + (sel?'✓':'') + '</div>'
-      + '<div class="picker-name"><div>' + p.fullName + '</div><div style="font-size:11px;color:var(--muted)">' + p.nickname + yr + '</div></div>'
+      + '<div class="picker-name"><div>' + p.fullName + doubleFlag + '</div><div style="font-size:11px;color:var(--muted)">' + p.nickname + yr + '</div></div>'
       + '<input class="picker-num" type="number" min="1" max="99" value="' + num + '" placeholder="nr" '
       + 'id="pnum-' + safeId(p.nickname) + '" '
-      + 'onclick="event.stopPropagation()" onchange="checkDuplicateNumbers(\'' + gameId + '\',\'' + team + '\')">'
+      + 'onclick="event.stopPropagation()" onchange="checkDuplicateNumbers(\'' + gameId + '\',\'' + team + '\')">'   
       + '</div>';
   }).join('') + '</div>';
 }
@@ -1127,13 +1127,17 @@ function renderPlayerPicker() {
   const active = activePlayersSorted();
   const el = document.getElementById('nk-player-grid');
   if (!el) return;
+  const nkDate = (document.getElementById('nk-date') || {}).value || '';
+  const booked = nkDate ? getBookedOnDate(nkDate, null) : new Set();
   el.innerHTML = '<div class="player-picker">' + active.map(p => {
     const sel = newGameSelected.has(p.nickname);
     const num = p.defaultNumber || '';
     const yr = p.birthYear ? ' ' + p.birthYear : '';
+    const isDouble = sel && booked.has(p.nickname);
+    const doubleFlag = isDouble ? ' <span style="color:#F5A623;font-size:10px;font-weight:700;background:rgba(245,166,35,.15);border:1px solid rgba(245,166,35,.4);border-radius:4px;padding:1px 5px">⚠️ Dobbelt</span>' : '';
     return '<div class="picker-row ' + (sel?'sel':'') + '" onclick="toggleNewPlayer(\'' + p.nickname + '\')" id="nkpr-' + safeId(p.nickname) + '">'
       + '<div class="picker-check">' + (sel?'✓':'') + '</div>'
-      + '<div class="picker-name"><div>' + p.fullName + '</div><div style="font-size:11px;color:var(--muted)">' + p.nickname + yr + '</div></div>'
+      + '<div class="picker-name"><div>' + p.fullName + doubleFlag + '</div><div style="font-size:11px;color:var(--muted)">' + p.nickname + yr + '</div></div>'
       + '<input class="picker-num" type="number" min="1" max="99" value="' + (sel ? num : '') + '" placeholder="nr" '
       + 'id="nkpnum-' + safeId(p.nickname) + '" '
       + 'onclick="event.stopPropagation()" onchange="checkNewDuplicates()">'
@@ -1176,19 +1180,34 @@ function checkNewDuplicates() {
 function updateNewGameSummary() {
   const el = document.getElementById('nk-summary');
   if (el) el.textContent = newGameSelected.size + ' spillere valgt';
+  // Update game list live so player count badge reflects current selection
+  renderGames();
 }
 
 function loadLastGameForNew() {
+  const team = newGameTeam;
   const sorted = [...DB.games].sort((a,b) => b.date.localeCompare(a.date));
+  // Copy from last game for THIS specific team (B copies B, C copies C)
   const last = sorted.find(g => {
-    const td = newGameTeam==='b' ? g.team1 : g.team2;
+    const td = team==='b' ? g.team1 : g.team2;
     return td.players && td.players.length > 0;
   });
-  if (!last) { showToast('Ingen tidligere kampe fundet'); return; }
-  const players = (newGameTeam==='b' ? last.team1 : last.team2).players;
+  if (!last) { showToast('Ingen tidligere Hold ' + team.toUpperCase() + '-kampe fundet'); return; }
+  const players = (team==='b' ? last.team1 : last.team2).players;
   newGameSelected = new Set(players.map(p => p.name));
   renderPlayerPicker();
-  showToast('Kopieret fra ' + fmtDate(last.date));
+  showToast('Kopieret fra Hold ' + team.toUpperCase() + ' · ' + fmtDate(last.date));
+}
+
+// Returns set of player nicknames already booked on a given date (excluding one game id)
+function getBookedOnDate(date, excludeGameId) {
+  const booked = new Set();
+  DB.games.forEach(g => {
+    if (g.date !== date || g.id === excludeGameId) return;
+    (g.team1.players||[]).forEach(p => booked.add(p.name));
+    (g.team2.players||[]).forEach(p => booked.add(p.name));
+  });
+  return booked;
 }
 
 function createGame() {
@@ -1461,7 +1480,389 @@ renderGames();
 document.getElementById('nk-date').value = new Date().toISOString().split('T')[0];
 buildNewGameForm();
 
-window.addEventListener('load', function() { initDriveSync(); });
+// ── HOLDSPORT INTEGRATION ──
+
+let hsWorkerUrl = '';
+let hsTeams = [];
+let hsShowAll = false; // toggle between filtered and all activities
+let hsPendingMapping = []; // players awaiting manual mapping
+
+// Keyword patterns that suggest it's a match (case-insensitive)
+const MATCH_KEYWORDS = /kamp|vs\.?|mod |match|stævne|turnering|cup|liga|serie|pulje/i;
+
+function hsInit() {
+  hsWorkerUrl = (DB.settings || {}).hsWorkerUrl || '';
+  renderHoldsportSection();
+}
+
+function hsSaveWorkerUrl() {
+  const val = (document.getElementById('hs-worker-url').value || '').trim().replace(/\/$/, '');
+  if (!DB.settings) DB.settings = {};
+  DB.settings.hsWorkerUrl = val;
+  hsWorkerUrl = val;
+  save();
+  showToast('Worker URL gemt ✓');
+  renderHoldsportSection();
+}
+
+async function hsFetch(path) {
+  if (!hsWorkerUrl) throw new Error('Worker URL ikke konfigureret');
+  const response = await fetch(hsWorkerUrl + path, { headers: { 'Accept': 'application/json' } });
+  if (!response.ok) throw new Error('HTTP ' + response.status + ' fra proxy');
+  return response.json();
+}
+
+// ── IMPORT KAMPE ──
+
+async function hsOpenImport() {
+  const modal = document.getElementById('hs-modal');
+  const content = document.getElementById('hs-modal-content');
+  modal.classList.add('open');
+  content.innerHTML = hsSpinner('Henter hold fra Holdsport...');
+
+  try {
+    // 1. Get teams
+    if (!hsTeams.length) {
+      hsTeams = await hsFetch('/teams');
+    }
+    if (!hsTeams.length) { content.innerHTML = hsError('Ingen hold fundet på din Holdsport-konto.'); return; }
+
+    // 2. Fetch activities for all teams in parallel, from today
+    const today = new Date().toISOString().split('T')[0];
+    const allActivities = [];
+    await Promise.all(hsTeams.map(async team => {
+      try {
+        // Fetch up to 50 future activities
+        const acts = await hsFetch('/teams/' + team.id + '/activities?date=' + today + '&per_page=50');
+        acts.forEach(a => allActivities.push({ ...a, _teamId: team.id, _teamName: team.name }));
+      } catch (e) { /* skip failed team */ }
+    }));
+
+    if (!allActivities.length) { content.innerHTML = hsError('Ingen kommende aktiviteter fundet.'); return; }
+
+    // Sort by date
+    allActivities.sort((a, b) => a.starttime.localeCompare(b.starttime));
+
+    hsRenderActivityPicker(allActivities);
+  } catch (e) {
+    content.innerHTML = hsError('Fejl: ' + e.message);
+  }
+}
+
+function hsIsMatch(activity) {
+  return MATCH_KEYWORDS.test(activity.name || '');
+}
+
+function hsRenderActivityPicker(activities) {
+  const content = document.getElementById('hs-modal-content');
+  const filtered = activities.filter(hsIsMatch);
+  const shown = hsShowAll ? activities : (filtered.length ? filtered : activities);
+  const hasFilter = filtered.length < activities.length;
+
+  // Check which holdsport IDs are already imported
+  const importedHsIds = new Set(DB.games.map(g => g.hsId).filter(Boolean));
+
+  let h = '<div class="flex-between" style="margin-bottom:12px">';
+  h += '<div class="modal-title" style="margin-bottom:0">Importer kampe fra Holdsport</div>';
+  h += '<button class="btn-x" onclick="closeModal(\'hs-modal\')">✕</button></div>';
+
+  if (hasFilter) {
+    h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">';
+    h += '<span style="font-size:12px;color:var(--muted)">Viser ' + shown.length + ' af ' + activities.length + ' aktiviteter</span>';
+    h += '<button class="btn btn-ghost btn-sm" onclick="hsToggleShowAll(' + JSON.stringify(activities).replace(/</g,'\\u003c') + ')">';
+    h += hsShowAll ? '🔽 Vis kun kampe' : '🔼 Vis alle aktiviteter';
+    h += '</button></div>';
+  } else {
+    h += '<p style="font-size:12px;color:var(--muted);margin-bottom:12px">' + shown.length + ' kommende aktiviteter</p>';
+  }
+
+  h += '<div style="display:flex;gap:8px;margin-bottom:12px">';
+  h += '<button class="btn btn-ghost btn-sm" onclick="hsSelectAllActivities(true)">Vælg alle</button>';
+  h += '<button class="btn btn-ghost btn-sm" onclick="hsSelectAllActivities(false)">Fravælg alle</button>';
+  h += '</div>';
+
+  h += '<div id="hs-activity-list">';
+  shown.forEach((a, i) => {
+    const date = a.starttime ? a.starttime.split('T')[0] : '?';
+    const time = a.starttime ? a.starttime.split('T')[1]?.slice(0, 5) : '';
+    const alreadyIn = importedHsIds.has(String(a.id));
+    const isMatch = hsIsMatch(a);
+    h += '<div class="hs-activity-row' + (alreadyIn ? ' hs-already' : '') + '" id="hsar-' + i + '">';
+    h += '<input type="checkbox" id="hsact-' + i + '" value="' + i + '" ' + (alreadyIn ? 'disabled' : 'checked') + ' style="flex-shrink:0">';
+    h += '<div style="flex:1;min-width:0">';
+    h += '<div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (a.name || '?') + (alreadyIn ? ' <span style="font-size:10px;color:var(--muted)">(allerede importeret)</span>' : '') + '</div>';
+    h += '<div style="font-size:11px;color:var(--muted)">' + fmtDate(date) + (time ? ' · ' + time : '') + ' · ' + a._teamName + '</div>';
+    h += '</div>';
+    if (isMatch) h += '<span style="font-size:10px;color:var(--green);font-weight:700;flex-shrink:0">KAMP</span>';
+    h += '</div>';
+  });
+  h += '</div>';
+
+  // Store activities for import step
+  h += '<script>window._hsActivities = ' + JSON.stringify(shown).replace(/</g, '\\u003c') + ';<\/script>';
+
+  h += '<div style="margin-top:14px;display:flex;gap:8px">';
+  h += '<button class="btn btn-ghost" style="flex:1" onclick="closeModal(\'hs-modal\')">Annuller</button>';
+  h += '<button class="btn btn-ajax" style="flex:1" onclick="hsImportSelected()">⬇️ Importér valgte</button>';
+  h += '</div>';
+
+  content.innerHTML = h;
+}
+
+function hsToggleShowAll(activities) {
+  hsShowAll = !hsShowAll;
+  hsRenderActivityPicker(activities);
+}
+
+function hsSelectAllActivities(select) {
+  document.querySelectorAll('#hs-activity-list input[type=checkbox]:not(:disabled)').forEach(cb => { cb.checked = select; });
+}
+
+function hsImportSelected() {
+  const activities = window._hsActivities || [];
+  const selected = [];
+  document.querySelectorAll('#hs-activity-list input[type=checkbox]:checked:not(:disabled)').forEach(cb => {
+    const idx = parseInt(cb.value);
+    if (activities[idx]) selected.push(activities[idx]);
+  });
+
+  if (!selected.length) { showToast('Ingen aktiviteter valgt'); return; }
+
+  let imported = 0;
+  selected.forEach(a => {
+    const date = a.starttime ? a.starttime.split('T')[0] : null;
+    if (!date) return;
+
+    // Parse opponent from activity name: "Kamp mod HIK" → "HIK", "Ajax vs Brøndby" → "Brøndby"
+    const name = a.name || '';
+    let opponent = name
+      .replace(/^kamp\s+mod\s+/i, '')
+      .replace(/^kamp\s*:\s*/i, '')
+      .replace(/^ajax\s*[-–vs]+\s*/i, '')
+      .replace(/\s*[-–vs]+\s*ajax.*$/i, '')
+      .trim() || name;
+
+    // Detect home/away: if "Ajax" appears first in name, it's home
+    const ajaxFirst = /^ajax/i.test(name.trim());
+    const formattedOpp = ajaxFirst ? ('Ajax - ' + opponent) : opponent;
+
+    // Assign to team based on Holdsport team name (B or C)
+    const teamName = (a._teamName || '').toLowerCase();
+    const isC = teamName.includes(' c') || teamName.endsWith('c') || teamName.includes('c-hold') || teamName.includes('2');
+    const team = isC ? 'c' : 'b';
+
+    DB.games.push({
+      id: 'g' + Date.now() + Math.random().toString(36).slice(2, 6),
+      date,
+      hsId: String(a.id),
+      hsTeamId: String(a._teamId),
+      team1: { opponent: team === 'b' ? formattedOpp : null, players: [] },
+      team2: { opponent: team === 'c' ? formattedOpp : null, players: [] },
+      cancellations: [], benched: [], notes: a.place || '',
+      status: 'planned', result: {}, playerStatus: {}, playerStats: {},
+      focus: ['','',''], wentWell: '', wentBad: '', motmB: '', motmC: '',
+    });
+    imported++;
+  });
+
+  save();
+  closeModal('hs-modal');
+  renderGames();
+  showToast('✓ ' + imported + ' kamp' + (imported !== 1 ? 'e' : '') + ' importeret');
+}
+
+// ── IMPORT TILMELDTE ──
+
+async function hsImportAttendees(gameId, team) {
+  const g = DB.games.find(x => x.id === gameId);
+  if (!g) return;
+
+  // Need hsId and hsTeamId — if not set, ask user
+  if (!g.hsId) {
+    showToast('Denne kamp har intet Holdsport ID — importér den via Holdsport-knappen først');
+    return;
+  }
+
+  const modal = document.getElementById('hs-modal');
+  const content = document.getElementById('hs-modal-content');
+  modal.classList.add('open');
+  content.innerHTML = hsSpinner('Henter tilmeldte fra Holdsport...');
+
+  try {
+    const users = await hsFetch('/activities/' + g.hsId + '/users');
+    const attended = users.filter(u => u.status === 'tilmeldt');
+
+    if (!attended.length) {
+      content.innerHTML = hsError('Ingen tilmeldte fundet for denne kamp på Holdsport.');
+      return;
+    }
+
+    hsRenderAttendeeMapping(attended, gameId, team);
+  } catch (e) {
+    content.innerHTML = hsError('Fejl: ' + e.message);
+  }
+}
+
+function hsRenderAttendeeMapping(hsUsers, gameId, team) {
+  const content = document.getElementById('hs-modal-content');
+  const g = DB.games.find(x => x.id === gameId);
+  const appPlayers = DB.players.filter(p => p.active);
+
+  // Load saved mapping from DB
+  if (!DB.hsPlayerMap) DB.hsPlayerMap = {};
+
+  // Auto-map: try exact fullName match, then fuzzy
+  const mappings = hsUsers.map(u => {
+    const saved = DB.hsPlayerMap[u.name];
+    if (saved) return { hsUser: u, appNick: saved, confidence: 'saved' };
+
+    // Exact fullName match
+    const exact = appPlayers.find(p => p.fullName.toLowerCase() === u.name.toLowerCase());
+    if (exact) return { hsUser: u, appNick: exact.nickname, confidence: 'exact' };
+
+    // Fuzzy: check if any word in fullName matches
+    const uWords = u.name.toLowerCase().split(/\s+/);
+    const fuzzy = appPlayers.find(p => {
+      const pWords = p.fullName.toLowerCase().split(/\s+/);
+      const matches = uWords.filter(w => w.length > 2 && pWords.includes(w));
+      return matches.length >= 2; // at least 2 words match
+    });
+    if (fuzzy) return { hsUser: u, appNick: fuzzy.nickname, confidence: 'fuzzy' };
+
+    return { hsUser: u, appNick: '', confidence: 'unknown' };
+  });
+
+  const needsReview = mappings.filter(m => m.confidence === 'unknown' || m.confidence === 'fuzzy');
+  const autoMapped = mappings.filter(m => m.confidence === 'exact' || m.confidence === 'saved');
+
+  let h = '<div class="flex-between" style="margin-bottom:12px">';
+  h += '<div class="modal-title" style="margin-bottom:0">Importer tilmeldte</div>';
+  h += '<button class="btn-x" onclick="closeModal(\'hs-modal\')">✕</button></div>';
+
+  h += '<p style="font-size:12px;color:var(--muted);margin-bottom:12px">';
+  h += hsUsers.length + ' tilmeldte på Holdsport · ' + autoMapped.length + ' automatisk matchet';
+  if (needsReview.length) h += ' · <span style="color:#F5A623">' + needsReview.length + ' kræver gennemgang</span>';
+  h += '</p>';
+
+  // Auto-mapped — show collapsed
+  if (autoMapped.length) {
+    h += '<div style="margin-bottom:12px">';
+    h += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--green);margin-bottom:6px">✓ Automatisk matchet</div>';
+    autoMapped.forEach((m, i) => {
+      const app = appPlayers.find(p => p.nickname === m.appNick);
+      h += '<div class="hs-mapping-row">';
+      h += '<div class="hs-mapping-hs">' + m.hsUser.name + '</div>';
+      h += '<div class="hs-mapping-arrow">→</div>';
+      h += '<select class="hs-mapping-select" id="hsmap-' + m.hsUser.id + '">';
+      h += '<option value="">– Ingen –</option>';
+      appPlayers.forEach(p => {
+        h += '<option value="' + p.nickname + '"' + (p.nickname === m.appNick ? ' selected' : '') + '>' + p.fullName + '</option>';
+      });
+      h += '</select></div>';
+    });
+    h += '</div>';
+  }
+
+  // Needs review
+  if (needsReview.length) {
+    h += '<div style="margin-bottom:12px">';
+    h += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#F5A623;margin-bottom:6px">⚠️ Kræver gennemgang</div>';
+    needsReview.forEach(m => {
+      h += '<div class="hs-mapping-row">';
+      h += '<div class="hs-mapping-hs">' + m.hsUser.name + '</div>';
+      h += '<div class="hs-mapping-arrow">→</div>';
+      h += '<select class="hs-mapping-select" id="hsmap-' + m.hsUser.id + '" style="border-color:rgba(245,166,35,.5)">';
+      h += '<option value="">– Ingen match –</option>';
+      appPlayers.forEach(p => {
+        h += '<option value="' + p.nickname + '"' + (p.nickname === m.appNick ? ' selected' : '') + '>' + p.fullName + '</option>';
+      });
+      h += '</select></div>';
+    });
+    h += '</div>';
+  }
+
+  // Store data for confirm step
+  h += '<script>window._hsMappings = ' + JSON.stringify(mappings).replace(/</g,'\\u003c') + '; window._hsGameId = "' + gameId + '"; window._hsTeam = "' + team + '";<\/script>';
+
+  h += '<div style="margin-top:14px;display:flex;gap:8px">';
+  h += '<button class="btn btn-ghost" style="flex:1" onclick="closeModal(\'hs-modal\')">Annuller</button>';
+  h += '<button class="btn btn-ajax" style="flex:1" onclick="hsConfirmAttendees()">✅ Tilføj til opstilling</button>';
+  h += '</div>';
+
+  content.innerHTML = h;
+}
+
+function hsConfirmAttendees() {
+  const gameId = window._hsGameId;
+  const team   = window._hsTeam;
+  const mappings = window._hsMappings || [];
+  const g = DB.games.find(x => x.id === gameId);
+  if (!g) return;
+
+  // Read current select values (user may have adjusted)
+  const resolved = mappings.map(m => {
+    const el = document.getElementById('hsmap-' + m.hsUser.id);
+    const nick = el ? el.value : m.appNick;
+    return { hsName: m.hsUser.name, appNick: nick };
+  }).filter(m => m.appNick);
+
+  // Save mapping for future use
+  if (!DB.hsPlayerMap) DB.hsPlayerMap = {};
+  resolved.forEach(m => { DB.hsPlayerMap[m.hsName] = m.appNick; });
+
+  // Build player list for the team
+  const teamData = team === 'b' ? g.team1 : g.team2;
+  const existingNicks = new Set((teamData.players || []).map(p => p.name));
+
+  resolved.forEach(m => {
+    if (existingNicks.has(m.appNick)) return; // already in lineup
+    const player = DB.players.find(p => p.nickname === m.appNick);
+    const num = player ? (player.defaultNumber || 0) : 0;
+    (teamData.players = teamData.players || []).push({ slot: num, name: m.appNick, factor: 1 });
+  });
+
+  // Sort by slot number
+  teamData.players.sort((a, b) => a.slot - b.slot);
+
+  save();
+  closeModal('hs-modal');
+  showToast('✓ ' + resolved.length + ' spillere tilføjet til opstilling');
+  openGame(gameId, team);
+}
+
+// ── RENDER SETTINGS SECTION ──
+
+function renderHoldsportSection() {
+  const el = document.getElementById('hs-settings');
+  if (!el) return;
+  const url = (DB.settings || {}).hsWorkerUrl || '';
+  let h = '<div class="card-title">🔗 Holdsport opsætning</div>';
+  h += '<div class="field"><label>Cloudflare Worker URL</label>';
+  h += '<input type="url" id="hs-worker-url" class="inline-input" value="' + url + '" placeholder="https://holdsport-proxy.DITNAVN.workers.dev">';
+  h += '</div>';
+  h += '<button class="btn btn-ajax btn-sm" style="width:100%" onclick="hsSaveWorkerUrl()">💾 Gem URL</button>';
+  if (url) {
+    h += '<div style="margin-top:8px;font-size:12px;color:var(--green)">✓ Worker konfigureret</div>';
+  } else {
+    h += '<div style="margin-top:8px;font-size:12px;color:var(--muted)">Indsæt din Worker URL for at aktivere Holdsport-import</div>';
+  }
+  el.innerHTML = h;
+}
+
+// ── HELPERS ──
+
+function hsSpinner(msg) {
+  return '<div style="text-align:center;padding:40px 20px">'
+    + '<div style="font-size:28px;margin-bottom:12px">⏳</div>'
+    + '<div style="color:var(--muted);font-size:14px">' + msg + '</div></div>';
+}
+function hsError(msg) {
+  return '<div style="padding:20px">'
+    + '<div style="color:var(--ajax-red);font-size:14px;margin-bottom:14px">⚠️ ' + msg + '</div>'
+    + '<button class="btn btn-ghost btn-sm" onclick="closeModal(\'hs-modal\')">Luk</button></div>';
+}
+
+window.addEventListener('load', function() { initDriveSync(); hsInit(); });
 </script>
 </body>
 </html>
