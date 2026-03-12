@@ -378,13 +378,21 @@ main { padding: 16px; max-width: 860px; margin: 0 auto; }
     </select>
   </div>
   <div id="players-list"></div>
+  <!-- Trænere sektion -->
+  <div style="margin-top:24px">
+    <div class="flex-between" style="margin-bottom:12px">
+      <div style="font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)">👔 Trænere</div>
+      <button class="btn btn-ajax btn-sm" onclick="openAddCoach()">+ Tilføj</button>
+    </div>
+    <div id="coaches-list"></div>
+  </div>
 </div>
 
 <!-- STATISTIK -->
 <div id="page-statistik" class="page">
   <div class="page-title">Statistik</div>
   <div class="tab-row" style="flex-wrap:wrap">
-    <button class="tab-btn active" onclick="setStatTab('spilletid',this)">Spilletid</button>
+    <button class="tab-btn active" onclick="setStatTab('spilletid',this)">Kampe</button>
     <button class="tab-btn" onclick="setStatTab('afbud',this)">Afbud</button>
     <button class="tab-btn" onclick="setStatTab('oversidder',this)">Oversidder</button>
     <button class="tab-btn" onclick="setStatTab('motm',this)">⭐ MoTM</button>
@@ -392,6 +400,7 @@ main { padding: 16px; max-width: 860px; margin: 0 auto; }
     <button class="tab-btn" onclick="setStatTab('assists',this)">🅰️ Assists</button>
     <button class="tab-btn" onclick="setStatTab('redninger',this)">🧤 Redninger</button>
     <div style="flex:1"></div>
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;align-self:center"><input type="checkbox" id="stat-show-coaches" onchange="renderStats()" style="width:14px;height:14px;cursor:pointer"> Trænere</label>
     <select onchange="setStatYearFilter(this.value)" style="background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:5px 10px;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;outline:none;cursor:pointer;align-self:center">
       <option value="all">Alle årgange</option>
       <option value="2014">2014</option>
@@ -768,12 +777,17 @@ function renderGames() {
     h += '</div>';
     h += '<div style="display:flex;align-items:center;gap:8px">';
     h += '<span class="team-badge-' + team + '">' + (isB ? 'B' : 'C') + '</span>';
-    h += '<span class="game-title">vs ' + opp + '</span>';
+    h += '<span class="game-title">' + (isHome ? opp : 'vs ' + opp) + '</span>';
     h += resultBadge;
     h += '</div>';
     h += '<div class="game-meta" style="margin-top:6px">';
-    h += '<span class="badge badge-muted">👕 ' + players.length + '</span>';
+    const displayCount = (g.status === 'done' && g.playerStatus && Object.keys(g.playerStatus).length)
+      ? Object.values(g.playerStatus).filter(s => s !== 'cancelled').length
+      : players.length;
+    h += '<span class="badge badge-muted">👕 ' + displayCount + '</span>';
     if (cancelCount) h += '<span class="badge badge-warn">❌ ' + cancelCount + '</span>';
+    const coaches = (isB ? g.coachesB : g.coachesC) || [];
+    if (coaches.length) h += '<span class="badge" style="background:rgba(255,255,255,.05);color:var(--muted);border:1px solid var(--border)">👔 ' + coaches.join(', ') + '</span>';
     if (hasMotm) h += '<span class="badge badge-star">⭐ ' + hasMotm + '</span>';
     if (hasFocus) h += '<span class="badge" style="background:rgba(243,156,18,.15);color:var(--gold);border:1px solid rgba(243,156,18,.3)">🎯</span>';
     if (hasReview) h += '<span class="badge badge-ok">📝</span>';
@@ -823,9 +837,17 @@ function buildGameDetailHTML(g, team) {
   // Edit meta button
   h += '<button class="btn btn-ghost btn-sm" style="margin-bottom:12px;width:100%" onclick="openEditMeta(\'' + g.id + '\',\'' + team + '\')">✏️ Rediger dato / modstander / hold</button>';
 
-  if ((DB.settings||{}).hsWorkerUrl) {
-    h += '<button class="btn btn-ghost btn-sm" style="margin-bottom:8px;width:100%;border-color:rgba(66,211,146,.4);color:#2ECC71" onclick="hsImportAttendees(\'' + g.id + '\',\'' + team + '\')">📥 Importer tilmeldte fra Holdsport</button>';
-  }
+  // Coaches
+  const coachKey = team === 'b' ? 'coachesB' : 'coachesC';
+  const coaches = g[coachKey] || [];
+  h += '<div class="section-label">👔 Trænere</div>';
+  h += '<div style="margin-bottom:10px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">';
+  coaches.forEach((c, i) => {
+    h += '<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.06);border:1px solid var(--border2);border-radius:20px;padding:4px 10px;font-size:13px">' + c
+      + '<button onclick="removeCoach(\'' + g.id + '\',\'' + team + '\',' + i + ')" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:0;font-size:11px;line-height:1">✕</button></span>';
+  });
+  h += '<button class="btn btn-ghost btn-sm" onclick="addCoachPrompt(\'' + g.id + '\',\'' + team + '\')">+ Tilføj træner</button>';
+  h += '</div>';
 
   // Lineup
   h += '<div class="section-label">👕 Opstilling</div>';
@@ -898,6 +920,7 @@ function buildGameDetailHTML(g, team) {
   // Actions
   h += '<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">';
   h += '<button class="btn btn-red btn-sm" onclick="deleteGame(\'' + g.id + '\')">🗑 Slet</button>';
+  h += '<button class="btn btn-ghost" style="flex:1" onclick="closeModal(\'game-modal\')">💾 Gem</button>';
   h += '<button class="btn btn-green" style="flex:1" onclick="markDone(\'' + g.id + '\',\'' + team + '\')">' + (g.status==='done' ? '✓ Spillet' : '✅ Marker som spillet') + '</button>';
   h += '</div>';
   return h;
@@ -921,6 +944,8 @@ function openEditMeta(id, team) {
   h += '<option value="away"' + (!isHome?' selected':'') + '>✈️ Udebane (Modstander starter i kampnavn)</option>';
   h += '</select></div>';
   h += '<div class="field"><label>Bemærkninger</label><input type="text" class="inline-input" id="em-notes" value="' + (g.notes||'') + '" placeholder="Valgfri..."></div>';
+  h += '<div class="field"><label>Holdsport aktivitets-ID <span style="font-size:10px;color:var(--muted);font-weight:400">(til import af tilmeldte)</span></label>';
+  h += '<input type="text" class="inline-input" id="em-hsid" value="' + (g.hsId||'') + '" placeholder="fx 530184"></div>';
   h += '<div style="display:flex;gap:8px;margin-top:14px">';
   h += '<button class="btn btn-ghost" style="flex:1" onclick="openGame(\'' + id + '\',\'' + team + '\')">Annuller</button>';
   h += '<button class="btn btn-ajax" style="flex:1" onclick="saveEditMeta(\'' + id + '\',\'' + team + '\')">💾 Gem</button>';
@@ -952,7 +977,28 @@ function saveEditMeta(id, team) {
       teamData.opponent = clean;
     }
   }
+  const hsId = document.getElementById('em-hsid');
+  if (hsId) g.hsId = hsId.value.trim() || g.hsId;
   save(); showToast('Gemt ✓'); openGame(id, team); renderGames();
+}
+
+
+function addCoachPrompt(id, team) {
+  const name = prompt('Trænernavn:');
+  if (!name || !name.trim()) return;
+  const g = DB.games.find(x => x.id === id); if (!g) return;
+  const key = team === 'b' ? 'coachesB' : 'coachesC';
+  if (!g[key]) g[key] = [];
+  const first = name.trim().split(/\s+/)[0]; // store first name only
+  if (!g[key].includes(first)) g[key].push(first);
+  save(); openGame(id, team);
+}
+
+function removeCoach(id, team, idx) {
+  const g = DB.games.find(x => x.id === id); if (!g) return;
+  const key = team === 'b' ? 'coachesB' : 'coachesC';
+  if (g[key]) g[key].splice(idx, 1);
+  save(); openGame(id, team);
 }
 
 function buildPSRows(g, team) {
@@ -1250,10 +1296,57 @@ function createGame() {
 function setPlayerTab(tab, el) {
   playerTabFilter = tab;
   document.querySelectorAll('#page-spillere .tab-btn').forEach(b => b.classList.remove('active'));
-  el.classList.add('active'); renderPlayers();
+  el.classList.add('active'); renderPlayers(); renderCoaches();
 }
 function setPlayerSort(s) { playerSort = s; renderPlayers(); }
 function setPlayerYearFilter(y) { playerYearFilter = y; renderPlayers(); }
+
+
+// ── COACHES ──
+function renderCoaches() {
+  const el = document.getElementById('coaches-list');
+  if (!el) return;
+  const coaches = DB.coaches || [];
+  if (!coaches.length) {
+    el.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:8px 0">Ingen trænere endnu</div>';
+    return;
+  }
+  el.innerHTML = coaches.map((c, i) => {
+    let h = '<div class="card" style="padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px">';
+    h += '<div style="flex:1"><div style="font-weight:600;font-size:15px">' + c.name + '</div>';
+    if (c.role) h += '<div style="font-size:12px;color:var(--muted)">' + c.role + '</div>';
+    h += '</div>';
+    h += '<button class="btn btn-ghost btn-sm" onclick="openEditCoach(' + i + ')" style="margin-right:4px">✏️</button>';
+    h += '<button class="btn btn-ghost btn-sm" onclick="deleteCoach(' + i + ')">🗑</button>';
+    h += '</div>';
+    return h;
+  }).join('');
+}
+
+function openAddCoach() {
+  const name = prompt('Trænernavn:');
+  if (!name || !name.trim()) return;
+  const role = prompt('Rolle (fx Cheftræner, Assistent) — valgfri:') || '';
+  if (!DB.coaches) DB.coaches = [];
+  DB.coaches.push({ name: name.trim(), role: role.trim() });
+  save(); renderCoaches();
+}
+
+function openEditCoach(i) {
+  const c = (DB.coaches || [])[i]; if (!c) return;
+  const name = prompt('Trænernavn:', c.name);
+  if (name === null) return;
+  const role = prompt('Rolle:', c.role || '');
+  if (role === null) return;
+  DB.coaches[i] = { name: name.trim(), role: role.trim() };
+  save(); renderCoaches();
+}
+
+function deleteCoach(i) {
+  if (!confirm('Slet træner?')) return;
+  (DB.coaches || []).splice(i, 1);
+  save(); renderCoaches();
+}
 
 function renderPlayers() {
   const search = (document.getElementById('player-search').value || '').toLowerCase();
@@ -1362,9 +1455,18 @@ function computePlayerStats() {
     if (g.motmB) { if (!stats[g.motmB]) stats[g.motmB]={b:0,c:0,cancel:0,bench:0,motm:0,goals:0,assists:0,saves:0}; stats[g.motmB].motm++; }
     if (g.motmC) { if (!stats[g.motmC]) stats[g.motmC]={b:0,c:0,cancel:0,bench:0,motm:0,goals:0,assists:0,saves:0}; stats[g.motmC].motm++; }
   });
+  // Coach game counts (b+c combined)
+  if ((document.getElementById('stat-show-coaches')?.checked)) {
+    DB.games.filter(g => g.status === 'done').forEach(g => {
+      [...(g.coachesB||[]), ...(g.coachesC||[])].forEach(name => {
+        if (!stats[name]) stats[name] = {b:0,c:0,cancel:0,bench:0,motm:0,goals:0,assists:0,saves:0};
+        stats[name].b += (g.coachesB||[]).includes(name) ? 1 : 0;
+        stats[name].c += (g.coachesC||[]).includes(name) ? 1 : 0;
+      });
+    });
+  }
   return stats;
 }
-
 function setStatTab(tab, el) {
   currentStatTab = tab;
   document.querySelectorAll('#page-statistik .tab-btn').forEach(b => b.classList.remove('active'));
@@ -1373,8 +1475,22 @@ function setStatTab(tab, el) {
 function setStatYearFilter(y) { statYearFilter = y; renderStats(); }
 function renderStats() {
   const stats = computePlayerStats();
+  const showCoaches = document.getElementById('stat-show-coaches')?.checked || false;
   let active = DB.players.filter((p,i,a) => p.active && a.findIndex(x => x.nickname === p.nickname) === i);
   if (statYearFilter !== 'all') active = active.filter(p => String(p.birthYear) === statYearFilter);
+  // Add coaches as pseudo-players when filter enabled
+  if (showCoaches) {
+    const coachNames = new Set();
+    DB.games.filter(g => g.status === 'done').forEach(g => {
+      (g.coachesB || []).forEach(n => coachNames.add(n));
+      (g.coachesC || []).forEach(n => coachNames.add(n));
+    });
+    coachNames.forEach(name => {
+      if (!active.find(p => p.nickname === name || p.fullName === name)) {
+        active.push({ nickname: name, fullName: name + ' 👔', birthYear: null, _isCoach: true });
+      }
+    });
+  }
   const yr = p => p.birthYear ? ' (' + p.birthYear + ')' : '';
   const maxV = arr => Math.max(...arr, 1);
   const el = document.getElementById('stat-content');
@@ -1491,8 +1607,7 @@ let hsShowAll   = false;
 
 // Filter: activities with "-" in name (e.g. "Ajax - HIK 4")
 function hsIsMatch(a) {
-  const name = (a.name || a.title || '');
-  return name.includes('-') && /ajax/i.test(name);
+  return (a.name || a.title || '').includes('-');
 }
 
 function hsInit() {
@@ -1609,11 +1724,11 @@ function hsRenderActivityPicker(activities) {
   // Filter toggle
   h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">';
   if (!hsShowAll && filtered.length > 0 && filtered.length < activities.length) {
-    h += '<span style="font-size:12px;color:var(--muted)">Viser ' + filtered.length + ' af ' + activities.length + ' (med "-" og "Ajax")</span>';
+    h += '<span style="font-size:12px;color:var(--muted)">Viser ' + filtered.length + ' af ' + activities.length + ' (filtreret på "-")</span>';
     h += '<button class="btn btn-ghost btn-sm" onclick="hsToggleAll()">🔼 Vis alle</button>';
   } else if (hsShowAll) {
     h += '<span style="font-size:12px;color:var(--muted)">Viser alle ' + activities.length + ' aktiviteter</span>';
-    h += '<button class="btn btn-ghost btn-sm" onclick="hsToggleAll()">🔽 Kun Ajax-kampe</button>';
+    h += '<button class="btn btn-ghost btn-sm" onclick="hsToggleAll()">🔽 Kun med "-"</button>';
   } else {
     h += '<span style="font-size:12px;color:var(--muted)">' + shown.length + ' aktiviteter</span>';
   }
@@ -1667,6 +1782,39 @@ function hsSelectAll(s) {
   document.querySelectorAll('.hs-act-cb:not(:disabled)').forEach(cb => cb.checked = s);
 }
 
+let hsActivitiesToFetchCoaches = [];
+
+async function hsBackgroundFetchCoaches(queue) {
+  for (const item of queue) {
+    try {
+      const raw   = await hsFetch('/activities/' + item.hsId + '/users');
+      const users = Array.isArray(raw) ? raw
+        : (raw.activities_users || Object.values(raw).find(v => Array.isArray(v)) || []);
+      // Coaches: Holdsport marks them with joined_status=1 but as trainers,
+      // or sometimes included in the activity's 'no_rsvp' list, or as club members with role.
+      // Most reliable: look for users whose name appears in activity.no_rsvp or whose
+      // joined_status indicates coach (value 1 in some API versions, or separate field)
+      // We check: user is NOT in activities_users as tilmeldt/afmeldt but in a coach-like role
+      // Fallback: any user with picked=0 and joined_status=1 is typically staff/coach
+      const coaches = users.filter(u => {
+        const status = (u.status || '').toLowerCase();
+        const jStatus = u.joined_status;
+        // Holdsport coach indicator: picked=0 means they're staff not player
+        return u.picked === 0 || status === 'træner' || status === 'coach'
+          || u.role === 2 || u.is_admin;
+      }).map(u => (u.name || '').trim().split(/\s+/)[0]).filter(Boolean);
+
+      const g = DB.games.find(x => x.hsId === item.hsId);
+      if (g && coaches.length) {
+        if (item.team === 'b') g.coachesB = [...new Set([...(g.coachesB||[]), ...coaches])];
+        else                  g.coachesC = [...new Set([...(g.coachesC||[]), ...coaches])];
+        save(); renderGames();
+      }
+    } catch (e) { /* skip */ }
+  }
+  hsActivitiesToFetchCoaches = [];
+}
+
 function hsImportSelected() {
   const shown    = window._hsShownActs || [];
   const selected = [];
@@ -1683,19 +1831,21 @@ function hsImportSelected() {
     if (!date) return;
 
     const name = a.name || a.title || '';
-    let opponent = name
-      .replace(/^kamp\s+mod\s+/i, '')
+    // Clean opponent: strip all Ajax/Kamp prefixes to get bare opponent name
+    const cleanOpp = name
+      .replace(/^ajax\s*2?\s*[-–]\s*/i, '')
+      .replace(/\s*[-–]\s*ajax\s*2?\s*$/i, '')
+      .replace(/^kamp\s*(mod\s*)?/i, '')
       .replace(/^kamp\s*:\s*/i, '')
-      .replace(/^kamp\s+/i, '')
-      .replace(/^ajax\s*(2\s*)?[-–]\s*/i, '')
-      .replace(/\s*[-–]\s*ajax\s*(2\s*)?$/i, '')
       .trim() || name;
-
     const ajaxFirst = /^ajax/i.test(name.trim());
+    const ajaxLast  = /ajax\s*2?\s*$/i.test(name.trim());
+    const isAjaxHome = ajaxFirst && !ajaxLast; // Ajax first = home
     const isC       = /\bc\b|hold c|c-hold|pige c|u11 c|\b2\b/.test((a._teamName || '').toLowerCase());
     const team      = isC ? 'c' : 'b';
     const suffix    = isC ? ' 2' : '';
-    const fmtOpp    = ajaxFirst ? ('Ajax' + suffix + ' - ' + opponent) : opponent;
+    // Apply same formatting rule as manual entry: home = 'Ajax - Opponent', away = 'Opponent'
+    const fmtOpp    = isAjaxHome ? ('Ajax' + suffix + ' - ' + cleanOpp) : cleanOpp;
 
     DB.games.push({
       id: 'g' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
@@ -1705,12 +1855,17 @@ function hsImportSelected() {
       cancellations: [], benched: [], notes: a.place || '',
       status: 'planned', result: {}, playerStatus: {}, playerStats: {},
       focus: ['','',''], wentWell: '', wentBad: '', motmB: '', motmC: '',
+      coachesB: [], coachesC: [],
     });
+    // Queue coach fetch for this activity
+    hsActivitiesToFetchCoaches.push({ hsId: String(a.id), team });
     imported++;
   });
 
   save(); closeModal('hs-modal'); renderGames();
   showToast('✓ ' + imported + ' kamp' + (imported !== 1 ? 'e' : '') + ' importeret');
+  // Fetch coaches in background
+  if (hsActivitiesToFetchCoaches.length) hsBackgroundFetchCoaches(hsActivitiesToFetchCoaches);
 }
 
 // ── IMPORT TILMELDTE ──
@@ -1874,7 +2029,7 @@ function hsError(msg) {
     + '<button class="btn btn-ghost btn-sm" onclick="closeModal(\'hs-modal\')">Luk</button></div>';
 }
 
-window.addEventListener('load',function(){initDriveSync();hsInit();});
+window.addEventListener('load',function(){initDriveSync();hsInit();renderCoaches();});
 </script>
 </body>
 </html>
