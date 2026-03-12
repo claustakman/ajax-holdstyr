@@ -278,7 +278,7 @@ main { padding: 16px; max-width: 860px; margin: 0 auto; }
   <button onclick="showPage('ny-kamp')">➕ Ny kamp</button>
   <button onclick="showPage('spillere')">👥 Spillere</button>
   <button onclick="showPage('statistik')">📊 Statistik</button>
-  <button onclick="showPage('eksport')">📤 Eksport</button>
+  <button onclick="showPage('eksport');renderTeamConfig()">⚙️ Opsætning</button>
 </nav>
 <main>
 
@@ -413,8 +413,13 @@ main { padding: 16px; max-width: 860px; margin: 0 auto; }
 
 <!-- EKSPORT -->
 <div id="page-eksport" class="page">
-  <div class="page-title">Eksport &amp; Backup</div>
+  <div class="page-title">Opsætning</div>
   <div class="card" id="hs-settings"></div>
+  <div class="card" id="team-config-card">
+    <div class="card-title">⚽ Holdkonfiguration</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Angiv holdnavnene fra Holdsport og hvilken række hvert hold spiller i. Bruges til at rense kampnavne og vise korrekt rækkenavn i oversigten.</p>
+    <div id="team-config-content"></div>
+  </div>
   <div class="card">
     <div class="card-title">CSV Eksport</div>
     <button class="btn btn-green" style="width:100%;margin-bottom:8px" onclick="exportCSV('games')">📋 Kampoversigt (CSV)</button>
@@ -776,7 +781,7 @@ function renderGames() {
     h += status === 'done' ? '<span style="color:var(--green)">✓ Spillet</span>' : '<span style="color:var(--gold)">● Planlagt</span>';
     h += '</div>';
     h += '<div style="display:flex;align-items:center;gap:8px">';
-    h += '<span class="team-badge-' + team + '">' + (isB ? 'B' : 'C') + '</span>';
+    h += '<span class="team-badge-' + team + '">' + teamRowLabel(team) + '</span>';
     h += '<span class="game-title">' + (isHome ? opp : 'vs ' + opp) + '</span>';
     h += resultBadge;
     h += '</div>';
@@ -846,7 +851,15 @@ function buildGameDetailHTML(g, team) {
     h += '<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.06);border:1px solid var(--border2);border-radius:20px;padding:4px 10px;font-size:13px">' + c
       + '<button onclick="removeCoach(\'' + g.id + '\',\'' + team + '\',' + i + ')" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:0;font-size:11px;line-height:1">✕</button></span>';
   });
-  h += '<button class="btn btn-ghost btn-sm" onclick="addCoachPrompt(\'' + g.id + '\',\'' + team + '\')">+ Tilføj træner</button>';
+  const availCoaches = (DB.coaches||[]).filter(c => !coaches.includes(c.name.split(' ')[0]));
+  if (availCoaches.length) {
+    h += '<select class="inline-input" style="flex:0 0 auto;max-width:160px;font-size:12px;padding:4px 8px" onchange="addCoachFromSelect(\'' + g.id + '\',\'' + team + '\',this)">';
+    h += '<option value="">+ Tilføj træner...</option>';
+    availCoaches.forEach(c => { h += '<option value="' + c.name.split(' ')[0] + '">' + c.name + (c.role ? ' (' + c.role + ')' : '') + '</option>'; });
+    h += '</select>';
+  } else {
+    h += '<button class="btn btn-ghost btn-sm" onclick="addCoachPrompt(\'' + g.id + '\',\'' + team + '\')">+ Tilføj træner</button>';
+  }
   h += '</div>';
 
   // Lineup
@@ -991,6 +1004,16 @@ function addCoachPrompt(id, team) {
   if (!g[key]) g[key] = [];
   const first = name.trim().split(/\s+/)[0]; // store first name only
   if (!g[key].includes(first)) g[key].push(first);
+  save(); openGame(id, team);
+}
+
+function addCoachFromSelect(id, team, sel) {
+  const val = sel.value; sel.value = '';
+  if (!val) return;
+  const g = DB.games.find(x => x.id === id); if (!g) return;
+  const key = team === 'b' ? 'coachesB' : 'coachesC';
+  if (!g[key]) g[key] = [];
+  if (!g[key].includes(val)) g[key].push(val);
   save(); openGame(id, team);
 }
 
@@ -1301,6 +1324,51 @@ function setPlayerTab(tab, el) {
 function setPlayerSort(s) { playerSort = s; renderPlayers(); }
 function setPlayerYearFilter(y) { playerYearFilter = y; renderPlayers(); }
 
+
+
+// ── TEAM CONFIG (Opsætning) ──
+function renderTeamConfig() {
+  const el = document.getElementById('team-config-content');
+  if (!el) return;
+  if (!DB.settings) DB.settings = {};
+  const cfg = DB.settings.teamConfig || [
+    { slot: 'b', label: 'B', hsName: '', row: '' },
+    { slot: 'c', label: 'C', hsName: '', row: '' },
+  ];
+  DB.settings.teamConfig = cfg;
+
+  let h = '';
+  cfg.forEach((t, i) => {
+    h += '<div style="display:grid;grid-template-columns:60px 1fr 80px;gap:8px;align-items:center;margin-bottom:10px">';
+    h += '<div style="font-weight:700;font-size:14px">Hold ' + t.label + '</div>';
+    h += '<input class="inline-input" style="font-size:12px" placeholder="Holdsport holdnavn (fx Ajax U11 Piger B)" id="tc-hsname-' + i + '" value="' + (t.hsName||'') + '">';
+    h += '<input class="inline-input" style="font-size:12px;text-align:center" placeholder="Række" id="tc-row-' + i + '" value="' + (t.row||'') + '">';
+    h += '</div>';
+    h += '<div style="font-size:11px;color:var(--muted);margin-bottom:12px;padding-left:68px">Rækken vises i stedet for B/C i oversigten (fx "A", "B", "Serie 3")</div>';
+  });
+  h += '<button class="btn btn-ajax btn-sm" style="width:100%" onclick="saveTeamConfig()">💾 Gem holdkonfiguration</button>';
+  el.innerHTML = h;
+}
+
+function saveTeamConfig() {
+  if (!DB.settings) DB.settings = {};
+  const cfg = DB.settings.teamConfig || [{slot:'b',label:'B'},{slot:'c',label:'C'}];
+  cfg.forEach((t, i) => {
+    const hn = document.getElementById('tc-hsname-' + i);
+    const rw = document.getElementById('tc-row-' + i);
+    if (hn) t.hsName = hn.value.trim();
+    if (rw) t.row    = rw.value.trim();
+  });
+  DB.settings.teamConfig = cfg;
+  save(); showToast('Holdkonfiguration gemt ✓'); renderTeamConfig();
+}
+
+// Get display label for a team slot ('b' or 'c')
+function teamRowLabel(slot) {
+  const cfg = (DB.settings||{}).teamConfig || [];
+  const t = cfg.find(x => x.slot === slot);
+  return (t && t.row) ? t.row : slot.toUpperCase();
+}
 
 // ── COACHES ──
 function renderCoaches() {
@@ -1782,6 +1850,18 @@ function hsSelectAll(s) {
   document.querySelectorAll('.hs-act-cb:not(:disabled)').forEach(cb => cb.checked = s);
 }
 
+// Determine if a Holdsport team name maps to the C slot
+function hsIsTeamC(teamName, teamCfg) {
+  const tn = teamName.toLowerCase();
+  // Check config first
+  if (teamCfg && teamCfg.length) {
+    const match = teamCfg.find(t => t.hsName && tn.includes(t.hsName.toLowerCase()));
+    if (match) return match.slot === 'c';
+  }
+  // Fallback: heuristic
+  return /\bc\b|hold c|c-hold|pige c|u11 c|\b2\b/.test(tn);
+}
+
 let hsActivitiesToFetchCoaches = [];
 
 async function hsBackgroundFetchCoaches(queue) {
@@ -1796,13 +1876,21 @@ async function hsBackgroundFetchCoaches(queue) {
       // joined_status indicates coach (value 1 in some API versions, or separate field)
       // We check: user is NOT in activities_users as tilmeldt/afmeldt but in a coach-like role
       // Fallback: any user with picked=0 and joined_status=1 is typically staff/coach
-      const coaches = users.filter(u => {
+      const coachUsers = users.filter(u => {
         const status = (u.status || '').toLowerCase();
-        const jStatus = u.joined_status;
-        // Holdsport coach indicator: picked=0 means they're staff not player
         return u.picked === 0 || status === 'træner' || status === 'coach'
           || u.role === 2 || u.is_admin;
-      }).map(u => (u.name || '').trim().split(/\s+/)[0]).filter(Boolean);
+      });
+      // Add unknown coaches to DB.coaches
+      coachUsers.forEach(u => {
+        const fullName = (u.name || '').trim();
+        if (!fullName) return;
+        if (!DB.coaches) DB.coaches = [];
+        if (!DB.coaches.find(c => c.name === fullName)) {
+          DB.coaches.push({ name: fullName, role: '' });
+        }
+      });
+      const coaches = coachUsers.map(u => (u.name || '').trim().split(/\s+/)[0]).filter(Boolean);
 
       const g = DB.games.find(x => x.hsId === item.hsId);
       if (g && coaches.length) {
@@ -1831,21 +1919,26 @@ function hsImportSelected() {
     if (!date) return;
 
     const name = a.name || a.title || '';
-    // Clean opponent: strip all Ajax/Kamp prefixes to get bare opponent name
-    const cleanOpp = name
+    // Strip own team name (from config) + 'kamp', 'mod', 'vs' to get bare opponent
+    const teamCfg = (DB.settings||{}).teamConfig || [];
+    const ownNames = teamCfg.map(t => t.hsName).filter(Boolean);
+    let cleanOpp = name;
+    // Remove own team name patterns
+    ownNames.forEach(n => {
+      cleanOpp = cleanOpp.replace(new RegExp('^' + n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '\\s*[-–]\\s*','i'), '');
+      cleanOpp = cleanOpp.replace(new RegExp('\\s*[-–]\\s*' + n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '\\s*$','i'), '');
+    });
+    // Also strip generic prefixes
+    cleanOpp = cleanOpp
       .replace(/^ajax\s*2?\s*[-–]\s*/i, '')
       .replace(/\s*[-–]\s*ajax\s*2?\s*$/i, '')
-      .replace(/^kamp\s*(mod\s*)?/i, '')
-      .replace(/^kamp\s*:\s*/i, '')
+      .replace(/^kamp\s*(mod\s*|vs\.?\s*)?/i, '')
       .trim() || name;
-    const ajaxFirst = /^ajax/i.test(name.trim());
-    const ajaxLast  = /ajax\s*2?\s*$/i.test(name.trim());
-    const isAjaxHome = ajaxFirst && !ajaxLast; // Ajax first = home
-    const isC       = /\bc\b|hold c|c-hold|pige c|u11 c|\b2\b/.test((a._teamName || '').toLowerCase());
-    const team      = isC ? 'c' : 'b';
-    const suffix    = isC ? ' 2' : '';
-    // Apply same formatting rule as manual entry: home = 'Ajax - Opponent', away = 'Opponent'
-    const fmtOpp    = isAjaxHome ? ('Ajax' + suffix + ' - ' + cleanOpp) : cleanOpp;
+    // Determine which team slot (B or C) from Holdsport team name
+    const isC = hsIsTeamC(a._teamName || '', teamCfg);
+    const team = isC ? 'c' : 'b';
+    // Always format as 'vs [modstander]' — simple and consistent
+    const fmtOpp = 'vs ' + cleanOpp;
 
     DB.games.push({
       id: 'g' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
@@ -2029,7 +2122,7 @@ function hsError(msg) {
     + '<button class="btn btn-ghost btn-sm" onclick="closeModal(\'hs-modal\')">Luk</button></div>';
 }
 
-window.addEventListener('load',function(){initDriveSync();hsInit();renderCoaches();});
+window.addEventListener('load',function(){initDriveSync();hsInit();renderCoaches();renderTeamConfig();});
 </script>
 </body>
 </html>
