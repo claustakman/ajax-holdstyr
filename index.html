@@ -1356,6 +1356,20 @@ function renderTeamConfig() {
   });
   h += '<div style="font-size:11px;color:var(--muted);margin:4px 0 12px">Rækken vises i oversigten i stedet for B/C (fx "A", "B", "Serie 3")</div>';
   h += '<button class="btn btn-ajax btn-sm" style="width:100%" onclick="saveTeamConfig()">💾 Gem holdkonfiguration</button>';
+  h += '<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">';
+  h += '<div class="card-title" style="margin-bottom:8px">👔 Tildel standardtrænere</div>';
+  h += '<p style="font-size:12px;color:var(--muted);margin-bottom:10px">Vælg en træner per hold-slot og tildel dem til alle kampe der mangler trænere.</p>';
+  const slots = [{key:'coachesB',label:'Hold B / slot 1'},{key:'coachesC',label:'Hold C / slot 2'}];
+  const coachOpts = (DB.coaches||[]).map(c => '<option value="' + c.name.split(' ')[0] + '">' + c.name + '</option>').join('');
+  slots.forEach(s => {
+    h += '<div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;margin-bottom:8px">';
+    h += '<div style="font-size:12px;font-weight:600">' + s.label + '</div>';
+    h += '<select class="inline-input" style="font-size:12px;padding:4px 8px" id="bulk-coach-' + s.key + '">';
+    h += '<option value="">– Ingen –</option>' + coachOpts;
+    h += '</select></div>';
+  });
+  h += '<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:4px" onclick="bulkAssignCoaches()">⚡ Tildel til kampe uden trænere</button>';
+  h += '</div>';
   el.innerHTML = h;
 }
 
@@ -1373,6 +1387,25 @@ function saveTeamConfig() {
 }
 
 // Get display label for a team slot ('b' or 'c')
+function bulkAssignCoaches() {
+  const bCoach = document.getElementById('bulk-coach-coachesB')?.value;
+  const cCoach = document.getElementById('bulk-coach-coachesC')?.value;
+  if (!bCoach && !cCoach) { showToast('Vælg mindst én træner'); return; }
+  let bCount = 0, cCount = 0;
+  DB.games.forEach(g => {
+    const hasB = g.team1?.opponent || (g.team1?.players||[]).length;
+    const hasC = g.team2?.opponent || (g.team2?.players||[]).length;
+    if (bCoach && hasB && !(g.coachesB||[]).length) {
+      g.coachesB = [bCoach]; bCount++;
+    }
+    if (cCoach && hasC && !(g.coachesC||[]).length) {
+      g.coachesC = [cCoach]; cCount++;
+    }
+  });
+  save(); renderGames(); renderTeamConfig();
+  showToast('✓ ' + (bCoach ? bCoach + ': ' + bCount + ' B-kampe' : '') + (bCoach && cCoach ? ' · ' : '') + (cCoach ? cCoach + ': ' + cCount + ' C-kampe' : ''));
+}
+
 function teamRowLabel(slot) {
   const cfg = (DB.settings||{}).teamConfig || [];
   const t = cfg.find(x => x.slot === slot);
