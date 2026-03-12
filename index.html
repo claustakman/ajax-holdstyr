@@ -693,17 +693,28 @@ function activePlayersSorted() {
 function safeId(nick) { return nick.replace(/[^a-zA-Z0-9]/g,'_'); }
 
 // ── GAMES LIST ──
-function parseResult(resultStr, oppName) {
+function parseResult(resultStr, oppName, isHomeOverride) {
   if (!resultStr) return null;
   const m = resultStr.match(/^(\d+)\s*[-–]\s*(\d+)$/);
   if (!m) return null;
   const home = parseInt(m[1]), away = parseInt(m[2]);
-  const ajaxIsHome = (oppName || '').trim().toUpperCase().startsWith('AJAX');
+  // Use explicit flag if provided, otherwise infer from oppName (legacy)
+  const ajaxIsHome = (isHomeOverride !== undefined)
+    ? isHomeOverride
+    : (oppName || '').trim().toUpperCase().startsWith('AJAX');
   const ajaxGoals = ajaxIsHome ? home : away;
   const oppGoals = ajaxIsHome ? away : home;
   const won = ajaxGoals > oppGoals;
   const drew = ajaxGoals === oppGoals;
   return { home, away, ajaxGoals, oppGoals, won, drew, lost: !won && !drew };
+}
+
+// Determine if Ajax is home for a given opponent string
+// Handles both 'Ajax - HIK4' (manual) and 'vs HIK4' (Holdsport import, always away)
+function isHomeGame(opp) {
+  const o = (opp || '').trim();
+  if (/^vs\s/i.test(o)) return false;  // 'vs X' = away
+  return o.toUpperCase().startsWith('AJAX');
 }
 
 function getGameFilters() {
@@ -754,9 +765,9 @@ function renderGames() {
     const hasReview = g.wentWell || g.wentBad;
     const hasMotm = isB ? g.motmB : g.motmC;
     const resultStr = isB ? (g.result||{}).b : (g.result||{}).c;
-    const parsed = parseResult(resultStr, opp);
+    const parsed = parseResult(resultStr, opp, isHome);
     const cancelCount = (g.cancellations||[]).length + (g.benched||[]).length;
-    const isHome = opp.trim().toUpperCase().startsWith('AJAX');
+    const isHome = isHomeGame(opp);
     const homeAwayBadge = '<span style="font-size:10px;padding:2px 6px;border-radius:4px;font-family:\'Barlow Condensed\',sans-serif;font-weight:700;letter-spacing:.5px;'
       + (isHome ? 'background:rgba(204,16,51,.2);color:#FF6080;border:1px solid rgba(204,16,51,.3)' : 'background:rgba(255,255,255,.05);color:var(--muted);border:1px solid var(--border)')
       + '">' + (isHome ? 'HJEMME' : 'UDE') + '</span>';
@@ -818,7 +829,7 @@ function buildGameDetailHTML(g, team) {
   const currentMotm = g[motmField] || '';
   const result = isB ? (g.result||{}).b : (g.result||{}).c;
   const resultField = isB ? 'b' : 'c';
-  const isHome = opp.trim().toUpperCase().startsWith('AJAX');
+  const isHome = isHomeGame(opp);
 
   let h = '';
   h += '<div class="flex-between" style="margin-bottom:10px">';
@@ -1063,11 +1074,11 @@ function saveGAS(gameId, name) {
 
 function saveResult(gameId, field, val) {
   const g = DB.games.find(x => x.id === gameId); if (!g) return;
-  if (!g.result) g.result = {}; g.result[field] = val; save(); showToast('Resultat gemt');
+  if (!g.result) g.result = {}; g.result[field] = val; save(); renderGames(); showToast('Resultat gemt');
 }
 function saveMotm(gameId, field, name) {
   const g = DB.games.find(x => x.id === gameId); if (!g) return;
-  g[field] = name; save();
+  g[field] = name; save(); renderGames();
   showToast(name ? ('⭐ ' + name) : 'Fravalgt');
   openGame(gameId, field === 'motmB' ? 'b' : 'c');
 }
@@ -1081,7 +1092,7 @@ function saveReview(gameId, field, val) {
 }
 function markDone(id, team) {
   const g = DB.games.find(x => x.id === id);
-  if (g) { g.status = 'done'; save(); showToast('✓ Spillet'); openGame(id, team); }
+  if (g) { g.status = 'done'; save(); renderGames(); showToast('✓ Spillet'); openGame(id, team); }
 }
 function deleteGame(id) {
   if (!confirm('Slet denne kamp?')) return;
@@ -1176,7 +1187,7 @@ function saveEditGame(id, team) {
   players.sort((a,b) => a.slot - b.slot);
   if (team === 'b') g.team1.players = players; else g.team2.players = players;
   delete editSelected[id + team];
-  save(); showToast('Gemt ✓'); openGame(id, team);
+  save(); renderGames(); showToast('Gemt ✓'); openGame(id, team);
 }
 
 // ── NEW GAME ──
@@ -1312,7 +1323,7 @@ function createGame() {
     status: 'planned', result: {}, playerStatus: {}, playerStats: {},
     focus: ['','',''], wentWell: '', wentBad: '', motmB: '', motmC: ''
   });
-  save(); showToast('Kamp oprettet ✓'); showPage('kampe');
+  save(); renderGames(); showToast('Kamp oprettet ✓'); showPage('kampe');
 }
 
 // ── PLAYERS ──
