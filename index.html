@@ -273,9 +273,9 @@ main { padding: 16px; max-width: 860px; margin: 0 auto; }
   <div class="header-stripe"></div>
   <div><h1><span>Ajax U11</span> <em>HOLDSTYR · SÆSON 2025/26</em></h1></div>
 </header>
+<div id="login-warning" style="display:none;background:#b45309;color:#fff;text-align:center;padding:8px 16px;font-size:13px;font-weight:600;position:sticky;top:0;z-index:200;cursor:pointer" onclick="driveLogin()" title="Klik for at logge ind">⚠️ Ikke logget på Google Drive — ændringer gemmes kun lokalt. Tryk her for at logge ind.</div>
 <nav>
   <button class="active" onclick="showPage('kampe')">🏆 Kampe</button>
-  <button onclick="showPage('ny-kamp')">➕ Ny kamp</button>
   <button onclick="showPage('spillere')">👥 Spillere</button>
   <button onclick="showPage('statistik')">📊 Statistik</button>
   <button onclick="showPage('eksport');renderTeamConfig()">⚙️ Opsætning</button>
@@ -284,7 +284,7 @@ main { padding: 16px; max-width: 860px; margin: 0 auto; }
 
 <!-- KAMPE -->
 <div id="page-kampe" class="page active">
-  <div class="flex-between" style="margin-bottom:12px"><div class="page-title">Kampe</div><button class="hs-import-btn" onclick="hsOpenImport()">📥 Holdsport</button></div>
+  <div class="flex-between" style="margin-bottom:12px"><div class="page-title">Kampe</div><div style="display:flex;gap:8px"><button class="hs-import-btn" style="background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.2);color:var(--text)" onclick="createNewGame()">➕ Opret kamp</button><button class="hs-import-btn" onclick="hsOpenImport()">📥 Holdsport</button></div></div>
   <div class="sync-bar" id="sync-bar">
   <div class="sync-dot sync-idle" id="sync-dot"></div>
   <div class="sync-status"><span id="sync-status-text">Indlæser Google API...</span></div>
@@ -320,37 +320,7 @@ main { padding: 16px; max-width: 860px; margin: 0 auto; }
   <div id="games-list"></div>
 </div>
 
-<!-- NY KAMP -->
-<div id="page-ny-kamp" class="page">
-  <div class="page-title">Ny kamp</div>
-  <div class="card">
-    <div class="card-title">Kampinfo</div>
-    <div class="field"><label>Dato</label><input type="date" id="nk-date"></div>
-    <div class="field"><label>Hold</label>
-      <select id="nk-team" onchange="buildNewGameForm()" style="width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:9px 12px;font-family:'Barlow',sans-serif;font-size:14px;outline:none">
-        <option value="b">Hold B</option><option value="c">Hold C</option>
-      </select>
-    </div>
-    <div class="field"><label>Hjemme / Ude</label>
-      <select id="nk-ha" style="width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:9px 12px;font-family:'Barlow',sans-serif;font-size:14px;outline:none">
-        <option value="home">🏠 Hjemmekamp</option><option value="away">✈️ Udebane</option>
-      </select>
-    </div>
-    <div class="field"><label>Modstander</label><input type="text" id="nk-opp" placeholder="fx HIK3 (skriv kun modstanderens navn)"></div>
-    <div class="field"><label>Bemærkninger</label><textarea id="nk-notes" rows="2" placeholder="Valgfri noter..."></textarea></div>
-  </div>
-  <div class="card">
-    <div class="flex-between" style="margin-bottom:10px">
-      <div class="card-title" style="margin-bottom:0">Vælg spillere</div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <span class="picker-summary" id="nk-summary">0 valgt</span>
-        <button class="copy-btn" onclick="loadLastGameForNew()">📋 Kopi fra sidste kamp</button>
-      </div>
-    </div>
-    <div id="nk-player-grid"></div>
-  </div>
-  <button class="btn btn-ajax" style="width:100%;padding:12px;font-size:16px" onclick="createGame()">✅ Opret kamp</button>
-</div>
+
 
 <!-- SPILLERE -->
 <div id="page-spillere" class="page">
@@ -508,6 +478,8 @@ function initDriveSync() {
           return;
         }
         updateSyncStatus('syncing', 'Logger ind...');
+        // Persist token so page refresh doesn't log out
+        try { sessionStorage.setItem('gapi_token', JSON.stringify(response)); } catch(e) {}
         findOrCreateDriveFile().then(function() {
           // After login: merge Drive data with local — local wins on conflict
           mergeFromDrive();
@@ -522,8 +494,30 @@ function initDriveSync() {
 
 function maybeEnableSync() {
   if (gapiReady && gisReady) {
-    updateSyncStatus('idle', 'Ikke logget ind');
     document.getElementById('sync-login-btn').disabled = false;
+    // Try to restore token from sessionStorage (survives page refresh)
+    try {
+      const saved = sessionStorage.getItem('gapi_token');
+      if (saved) {
+        const tok = JSON.parse(saved);
+        // Check token not expired (expires_in is in seconds from issue time)
+        gapi.client.setToken(tok);
+        updateSyncStatus('syncing', 'Genopretter forbindelse...');
+        findOrCreateDriveFile().then(function() {
+          updateSyncStatus('ok', 'Synkroniseret');
+          document.getElementById('sync-login-btn').style.display = 'none';
+          document.getElementById('sync-logout-btn').style.display = 'inline-flex';
+          document.getElementById('sync-manual-btn').style.display = 'inline-flex';
+        }).catch(function() {
+          // Token expired — clear and show login
+          sessionStorage.removeItem('gapi_token');
+          gapi.client.setToken(null);
+          updateSyncStatus('idle', 'Ikke logget ind');
+        });
+        return;
+      }
+    } catch(e) {}
+    updateSyncStatus('idle', 'Ikke logget ind');
   }
 }
 
@@ -538,6 +532,7 @@ function driveLogout() {
     if (token) { google.accounts.oauth2.revoke(token.access_token); gapi.client.setToken(null); }
   } catch(e) {}
   driveFileId = null; lastSyncTime = null;
+  try { sessionStorage.removeItem('gapi_token'); } catch(e) {}
   updateSyncStatus('idle', 'Ikke logget ind');
   document.getElementById('sync-login-btn').style.display = 'inline-flex';
   document.getElementById('sync-logout-btn').style.display = 'none';
@@ -641,6 +636,7 @@ function updateSyncStatus(state, msg) {
   if (!el || !dot) return;
   el.textContent = msg;
   dot.className = 'sync-dot sync-' + state;
+  if (typeof updateLoginWarning === 'function') updateLoginWarning();
 }
 
 
@@ -655,14 +651,13 @@ function loadData() {
   try { const r = localStorage.getItem('ajax_holdstyr_v5'); if (r) return JSON.parse(r); } catch(e) {}
   return JSON.parse(JSON.stringify(SEED));
 }
-let _warnedNotSignedIn = false;
 function save() {
   localStorage.setItem('ajax_holdstyr_v5', JSON.stringify(DB));
   saveToDrive();
-  if (!_warnedNotSignedIn && !isSignedIn()) {
-    _warnedNotSignedIn = true;
-    showToast('⚠️ Ikke logget på Google — ændringer gemmes kun lokalt', 5000, true);
-  }
+}
+function updateLoginWarning() {
+  const el = document.getElementById('login-warning');
+  if (el) el.style.display = isSignedIn() ? 'none' : 'block';
 }
 function resetToSeed() {
   if (!confirm('Nulstil alle data til original import?')) return;
@@ -674,12 +669,11 @@ function showPage(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + page).classList.add('active');
-  const idx = {kampe:0,'ny-kamp':1,spillere:2,statistik:3,eksport:4}[page] || 0;
+  const idx = {kampe:0,spillere:1,statistik:2,eksport:3}[page] || 0;
   document.querySelectorAll('nav button')[idx].classList.add('active');
   if (page === 'kampe') renderGames();
   if (page === 'spillere') renderPlayers();
   if (page === 'statistik') renderStats();
-  if (page === 'ny-kamp') buildNewGameForm();
 }
 
 function fmtDate(d) {
@@ -949,6 +943,12 @@ function buildGameDetailHTML(g, team) {
   h += '<div class="section-label">⚠️ Hvad gik knap så godt?</div>';
   h += '<div class="review-block"><textarea placeholder="Skriv her..." onchange="saveReview(\'' + g.id + '\',\'wentBad\',this.value)">' + (g.wentBad||'') + '</textarea></div>';
 
+  // Holdsport import tilmeldte
+  if ((DB.settings||{}).hsWorkerUrl) {
+    h += '<button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:8px" onclick="hsImportAttendees(\'' + g.id + '\',\'' + team + '\')">';
+    h += '📥 Importer tilmeldte fra Holdsport</button>';
+  }
+
   // Actions
   h += '<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">';
   h += '<button class="btn btn-red btn-sm" onclick="deleteGame(\'' + g.id + '\')">🗑 Slet</button>';
@@ -959,14 +959,23 @@ function buildGameDetailHTML(g, team) {
 }
 
 // ── EDIT META (date / opponent / home-away) ──
-function openEditMeta(id, team) {
+function openEditMeta(id, team, isNew) {
   const g = DB.games.find(x => x.id === id); if (!g) return;
   const isB = team === 'b';
   const teamData = isB ? g.team1 : g.team2;
+  const title = isNew ? 'Opret kamp' : 'Rediger kampinfo';
+  const onX = isNew ? 'deleteGame(\'' + id + '\',true)' : 'openGame(\'' + id + '\',\'' + team + '\')';
   let h = '<div class="flex-between" style="margin-bottom:12px">';
-  h += '<div class="modal-title" style="margin-bottom:0">Rediger kampinfo</div>';
-  h += '<button class="btn-x" onclick="openGame(\'' + id + '\',\'' + team + '\')">✕</button></div>';
+  h += '<div class="modal-title" style="margin-bottom:0">' + title + '</div>';
+  h += '<button class="btn-x" onclick="' + onX + '">✕</button></div>';
   h += '<div class="field"><label>Dato</label><input type="date" class="inline-input" id="em-date" value="' + g.date + '"></div>';
+  if (isNew) {
+    h += '<div class="field"><label>Hold</label>';
+    h += '<select class="inline-input" id="em-team" style="cursor:pointer">';
+    h += '<option value="b"' + (team==='b'?' selected':'') + '>Hold B</option>';
+    h += '<option value="c"' + (team==='c'?' selected':'') + '>Hold C</option>';
+    h += '</select></div>';
+  }
   h += '<div class="field"><label>Modstander (Hold ' + team.toUpperCase() + ')</label>';
   h += '<input type="text" class="inline-input" id="em-opp" value="' + (teamData.opponent||'') + '" placeholder="fx HIK3"></div>';
   h += '<div class="field"><label>Hjemme / Ude</label>';
@@ -979,13 +988,14 @@ function openEditMeta(id, team) {
   h += '<div class="field"><label>Holdsport aktivitets-ID <span style="font-size:10px;color:var(--muted);font-weight:400">(til import af tilmeldte)</span></label>';
   h += '<input type="text" class="inline-input" id="em-hsid" value="' + (g.hsId||'') + '" placeholder="fx 530184"></div>';
   h += '<div style="display:flex;gap:8px;margin-top:14px">';
-  h += '<button class="btn btn-ghost" style="flex:1" onclick="openGame(\'' + id + '\',\'' + team + '\')">Annuller</button>';
-  h += '<button class="btn btn-ajax" style="flex:1" onclick="saveEditMeta(\'' + id + '\',\'' + team + '\')">💾 Gem</button>';
+  const cancelAct = isNew ? 'deleteGame(\'' + id + '\',true)' : 'openGame(\'' + id + '\',\'' + team + '\')';
+  h += '<button class="btn btn-ghost" style="flex:1" onclick="' + cancelAct + '">Annuller</button>';
+  h += '<button class="btn btn-ajax" style="flex:1" onclick="saveEditMeta(\'' + id + '\',\'' + team + '\',' + (isNew?'true':'false') + ')">💾 Gem</button>';
   h += '</div>';
   document.getElementById('game-modal-content').innerHTML = h;
 }
 
-function saveEditMeta(id, team) {
+function saveEditMeta(id, team, isNew) {
   const g = DB.games.find(x => x.id === id); if (!g) return;
   const date = document.getElementById('em-date').value;
   const opp = document.getElementById('em-opp').value.trim();
@@ -1011,7 +1021,19 @@ function saveEditMeta(id, team) {
   }
   const hsId = document.getElementById('em-hsid');
   if (hsId) g.hsId = hsId.value.trim() || g.hsId;
-  save(); showToast('Gemt ✓'); openGame(id, team); renderGames();
+  // For new games: pick up team from dropdown if present
+  if (isNew) {
+    const teamSel = document.getElementById('em-team');
+    if (teamSel) team = teamSel.value;
+  }
+  save(); renderGames();
+  if (isNew) {
+    showToast('Kamp oprettet ✓');
+    openGame(id, team);
+  } else {
+    showToast('Gemt ✓');
+    openGame(id, team);
+  }
 }
 
 
@@ -1102,15 +1124,15 @@ function markDone(id, team) {
   const g = DB.games.find(x => x.id === id);
   if (g) { g.status = 'done'; save(); renderGames(); showToast('✓ Spillet'); openGame(id, team); }
 }
-function deleteGame(id) {
-  if (!confirm('Slet denne kamp?')) return;
+function deleteGame(id, silent) {
+  if (!silent && !confirm('Slet denne kamp?')) return;
   DB.games = DB.games.filter(x => x.id !== id); save(); closeModal('game-modal'); renderGames();
 }
 function copyLineupToNew(team, fromGameId) {
   const g = DB.games.find(x => x.id === fromGameId); if (!g) return;
   const players = team === 'b' ? g.team1.players : g.team2.players;
   sessionStorage.setItem('ajax_copy_lineup', JSON.stringify({team, players}));
-  closeModal('game-modal'); showPage('ny-kamp'); showToast('Hold ' + team.toUpperCase() + ' kopieret');
+  closeModal('game-modal'); showToast('Hold ' + team.toUpperCase() + ' kopieret — opret kamp manuelt for at bruge det');
 }
 
 // ── EDIT LINEUP ──
@@ -1295,8 +1317,8 @@ function getBookedOnDate(date, excludeGameId) {
   const booked = new Set();
   DB.games.forEach(g => {
     if (g.date !== date || g.id === excludeGameId) return;
-    (g.team1.players||[]).forEach(p => booked.add(p.name));
-    (g.team2.players||[]).forEach(p => booked.add(p.name));
+    (g.team1.players||[]).forEach(p => { booked.add(p.name); if(p.nickname) booked.add(p.nickname); });
+    (g.team2.players||[]).forEach(p => { booked.add(p.name); if(p.nickname) booked.add(p.nickname); });
   });
   return booked;
 }
@@ -1885,7 +1907,7 @@ function hsRenderActivityPicker(activities) {
 
     h += '<div class="hs-activity-row' + (alreadyIn ? ' hs-already' : '') + '">';
     h += '<input type="checkbox" class="hs-act-cb" data-idx="' + i + '" '
-       + (alreadyIn ? 'disabled' : 'checked')
+       + (alreadyIn ? 'disabled' : '')
        + ' style="flex-shrink:0;width:16px;height:16px;cursor:pointer">';
     h += '<div style="flex:1;min-width:0">';
     h += '<div style="font-size:13px;font-weight:600">' + name;
@@ -2194,7 +2216,7 @@ function hsError(msg) {
     + '<button class="btn btn-ghost btn-sm" onclick="closeModal(\'hs-modal\')">Luk</button></div>';
 }
 
-window.addEventListener('load',function(){initDriveSync();hsInit();renderCoaches();renderTeamConfig();});
+window.addEventListener('load',function(){initDriveSync();hsInit();renderCoaches();renderTeamConfig();updateLoginWarning();});
 </script>
 </body>
 </html>
