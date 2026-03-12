@@ -655,7 +655,15 @@ function loadData() {
   try { const r = localStorage.getItem('ajax_holdstyr_v5'); if (r) return JSON.parse(r); } catch(e) {}
   return JSON.parse(JSON.stringify(SEED));
 }
-function save() { localStorage.setItem('ajax_holdstyr_v5', JSON.stringify(DB)); saveToDrive(); }
+let _warnedNotSignedIn = false;
+function save() {
+  localStorage.setItem('ajax_holdstyr_v5', JSON.stringify(DB));
+  saveToDrive();
+  if (!_warnedNotSignedIn && !isSignedIn()) {
+    _warnedNotSignedIn = true;
+    showToast('⚠️ Ikke logget på Google — ændringer gemmes kun lokalt', 5000, true);
+  }
+}
 function resetToSeed() {
   if (!confirm('Nulstil alle data til original import?')) return;
   localStorage.removeItem('ajax_holdstyr_v5');
@@ -765,9 +773,9 @@ function renderGames() {
     const hasReview = g.wentWell || g.wentBad;
     const hasMotm = isB ? g.motmB : g.motmC;
     const resultStr = isB ? (g.result||{}).b : (g.result||{}).c;
+    const isHome = isHomeGame(opp);
     const parsed = parseResult(resultStr, opp, isHome);
     const cancelCount = (g.cancellations||[]).length + (g.benched||[]).length;
-    const isHome = isHomeGame(opp);
     const homeAwayBadge = '<span style="font-size:10px;padding:2px 6px;border-radius:4px;font-family:\'Barlow Condensed\',sans-serif;font-weight:700;letter-spacing:.5px;'
       + (isHome ? 'background:rgba(204,16,51,.2);color:#FF6080;border:1px solid rgba(204,16,51,.3)' : 'background:rgba(255,255,255,.05);color:var(--muted);border:1px solid var(--border)')
       + '">' + (isHome ? 'HJEMME' : 'UDE') + '</span>';
@@ -1713,7 +1721,14 @@ function download(filename, content, mime) {
 
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); }));
-function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); }
+function showToast(msg, duration, isWarn) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = isWarn ? 'rgba(245,166,35,.95)' : '';
+  t.style.color = isWarn ? '#000' : '';
+  t.classList.add('show');
+  setTimeout(() => { t.classList.remove('show'); t.style.background=''; t.style.color=''; }, duration || 2200);
+}
 
 // INIT
 renderGames();
