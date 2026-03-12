@@ -823,7 +823,6 @@ function buildGameDetailHTML(g, team) {
   // Edit meta button
   h += '<button class="btn btn-ghost btn-sm" style="margin-bottom:12px;width:100%" onclick="openEditMeta(\'' + g.id + '\',\'' + team + '\')">✏️ Rediger dato / modstander / hold</button>';
 
-  // Holdsport tilmeldte button
   if ((DB.settings||{}).hsWorkerUrl) {
     h += '<button class="btn btn-ghost btn-sm" style="margin-bottom:8px;width:100%;border-color:rgba(66,211,146,.4);color:#2ECC71" onclick="hsImportAttendees(\'' + g.id + '\',\'' + team + '\')">📥 Importer tilmeldte fra Holdsport</button>';
   }
@@ -1492,7 +1491,8 @@ let hsShowAll   = false;
 
 // Filter: activities with "-" in name (e.g. "Ajax - HIK 4")
 function hsIsMatch(a) {
-  return (a.name || a.title || '').includes('-');
+  const name = (a.name || a.title || '');
+  return name.includes('-') && /ajax/i.test(name);
 }
 
 function hsInit() {
@@ -1609,11 +1609,11 @@ function hsRenderActivityPicker(activities) {
   // Filter toggle
   h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">';
   if (!hsShowAll && filtered.length > 0 && filtered.length < activities.length) {
-    h += '<span style="font-size:12px;color:var(--muted)">Viser ' + filtered.length + ' af ' + activities.length + ' (filtreret på "-")</span>';
+    h += '<span style="font-size:12px;color:var(--muted)">Viser ' + filtered.length + ' af ' + activities.length + ' (med "-" og "Ajax")</span>';
     h += '<button class="btn btn-ghost btn-sm" onclick="hsToggleAll()">🔼 Vis alle</button>';
   } else if (hsShowAll) {
     h += '<span style="font-size:12px;color:var(--muted)">Viser alle ' + activities.length + ' aktiviteter</span>';
-    h += '<button class="btn btn-ghost btn-sm" onclick="hsToggleAll()">🔽 Kun med "-"</button>';
+    h += '<button class="btn btn-ghost btn-sm" onclick="hsToggleAll()">🔽 Kun Ajax-kampe</button>';
   } else {
     h += '<span style="font-size:12px;color:var(--muted)">' + shown.length + ' aktiviteter</span>';
   }
