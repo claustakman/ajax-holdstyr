@@ -1224,24 +1224,11 @@ function saveEditGame(id, team) {
 let newGameSelected = new Set();
 let newGameTeam = 'b';
 
-function buildNewGameForm() {
-  newGameTeam = document.getElementById('nk-team').value || 'b';
-  newGameSelected = new Set();
-  let copied = null;
-  try { copied = JSON.parse(sessionStorage.getItem('ajax_copy_lineup') || 'null'); } catch(e) {}
-  if (copied && copied.team === newGameTeam) {
-    copied.players.forEach(p => newGameSelected.add(p.name));
-    sessionStorage.removeItem('ajax_copy_lineup');
-  }
-  renderPlayerPicker();
-}
-
 function renderPlayerPicker() {
   const active = activePlayersSorted();
   const el = document.getElementById('nk-player-grid');
   if (!el) return;
-  const nkDate = (document.getElementById('nk-date') || {}).value || '';
-  const booked = nkDate ? getBookedOnDate(nkDate, null) : new Set();
+  const booked = new Set(); // double-booking check not applicable here
   el.innerHTML = '<div class="player-picker">' + active.map(p => {
     const sel = newGameSelected.has(p.nickname);
     const num = p.defaultNumber || '';
@@ -1323,40 +1310,6 @@ function getBookedOnDate(date, excludeGameId) {
   return booked;
 }
 
-function createGame() {
-  const date = document.getElementById('nk-date').value;
-  if (!date) { alert('Vælg en dato'); return; }
-  const team = newGameTeam;
-  const rawOpp = document.getElementById('nk-opp').value.trim();
-  const ha = document.getElementById('nk-ha').value;
-  // Format opponent name based on home/away
-  let opp = rawOpp;
-  if (rawOpp) {
-    if (ha === 'home') {
-      const suffix = (team === 'c') ? ' 2' : '';
-      opp = 'Ajax' + suffix + ' - ' + rawOpp;
-    }
-  }
-  const players = [];
-  newGameSelected.forEach(nick => {
-    const numEl = document.getElementById('nkpnum-' + safeId(nick));
-    const num = numEl ? (parseInt(numEl.value) || 0) : 0;
-    players.push({slot: num, name: nick, factor: 1});
-  });
-  players.sort((a,b) => a.slot - b.slot);
-  const isB = team === 'b';
-  DB.games.push({
-    id: 'g' + Date.now(), date,
-    team1: {opponent: isB ? opp : null, players: isB ? players : []},
-    team2: {opponent: !isB ? opp : null, players: !isB ? players : []},
-    cancellations: [], benched: [], notes: document.getElementById('nk-notes').value,
-    status: 'planned', result: {}, playerStatus: {}, playerStats: {},
-    focus: ['','',''], wentWell: '', wentBad: '', motmB: '', motmC: ''
-  });
-  save(); renderGames(); showToast('Kamp oprettet ✓'); showPage('kampe');
-}
-
-// ── PLAYERS ──
 function setPlayerTab(tab, el) {
   playerTabFilter = tab;
   document.querySelectorAll('#page-spillere .tab-btn').forEach(b => b.classList.remove('active'));
@@ -1754,8 +1707,6 @@ function showToast(msg, duration, isWarn) {
 
 // INIT
 renderGames();
-document.getElementById('nk-date').value = new Date().toISOString().split('T')[0];
-buildNewGameForm();
 
 // ── HOLDSPORT INTEGRATION ──
 
