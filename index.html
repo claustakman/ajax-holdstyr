@@ -833,7 +833,6 @@ function buildGameDetailHTML(g, team) {
   }
   h += ' <button class="copy-btn" onclick="copyLineupToNew(\'' + team + '\',\'' + g.id + '\')">📋 Brug til ny kamp</button>';
   h += ' <button class="copy-btn" style="border-color:rgba(204,16,51,.4);background:rgba(204,16,51,.08);color:var(--ajax-red)" onclick="openEditGame(\'' + g.id + '\',\'' + team + '\')">✏️ Rediger</button>';
-    if (g.hsId) h += ' <button class="copy-btn" style="border-color:rgba(66,211,146,.35);background:rgba(66,211,146,.08);color:#2ECC71" onclick="hsImportAttendees(\'' + g.id + '\',\'' + team + '\')">📥 Holdsport tilmeldte</button>';
   h += '</div>';
 
   // Participation
@@ -1484,11 +1483,10 @@ buildNewGameForm();
 
 let hsWorkerUrl = '';
 let hsTeams = [];
-let hsShowAll = false; // toggle between filtered and all activities
-let hsPendingMapping = []; // players awaiting manual mapping
+let hsShowAll = false;
 
 // Keyword patterns that suggest it's a match (case-insensitive)
-const MATCH_KEYWORDS = /kamp|vs\.?|mod |match|stævne|turnering|cup|liga|serie|pulje/i;
+const MATCH_KEYWORDS = /kamp|vs\.?\s|mod\s|\bcu[p]\b|liga|serie|pulje|turnering|stævne/i;
 
 function hsInit() {
   hsWorkerUrl = (DB.settings || {}).hsWorkerUrl || '';
@@ -1508,8 +1506,24 @@ function hsSaveWorkerUrl() {
 async function hsFetch(path) {
   if (!hsWorkerUrl) throw new Error('Worker URL ikke konfigureret');
   const response = await fetch(hsWorkerUrl + path, { headers: { 'Accept': 'application/json' } });
-  if (!response.ok) throw new Error('HTTP ' + response.status + ' fra proxy');
-  return response.json();
+  if (!response.ok) throw new Error('HTTP ' + response.status);
+  const data = await response.json();
+  return data;
+}
+
+// Normalize API response to always get an array
+function hsToArray(data) {
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.activities)) return data.activities;
+  if (data && Array.isArray(data.teams)) return data.teams;
+  if (data && Array.isArray(data.members)) return data.members;
+  if (data && typeof data === 'object') {
+    // Try first array value found
+    for (const key of Object.keys(data)) {
+      if (Array.isArray(data[key])) return data[key];
+    }
+  }
+  return [];
 }
 
 // ── IMPORT KAMPE ──
@@ -1521,85 +1535,107 @@ async function hsOpenImport() {
   content.innerHTML = hsSpinner('Henter hold fra Holdsport...');
 
   try {
-    // 1. Get teams
     if (!hsTeams.length) {
-      hsTeams = await hsFetch('/teams');
+      const raw = await hsFetch('/teams');
+      hsTeams = hsToArray(raw);
     }
-    if (!hsTeams.length) { content.innerHTML = hsError('Ingen hold fundet på din Holdsport-konto.'); return; }
+    if (!hsTeams.length) {
+      content.innerHTML = hsError('Ingen hold fundet på din Holdsport-konto.');
+      return;
+    }
 
-    // 2. Fetch activities for all teams in parallel, from today
+    content.innerHTML = hsSpinner('Henter aktiviteter for ' + hsTeams.length + ' hold...');
+
     const today = new Date().toISOString().split('T')[0];
     const allActivities = [];
+
     await Promise.all(hsTeams.map(async team => {
       try {
-        // Fetch up to 50 future activities
-        const acts = await hsFetch('/teams/' + team.id + '/activities?date=' + today + '&per_page=50');
-        acts.forEach(a => allActivities.push({ ...a, _teamId: team.id, _teamName: team.name }));
+        const raw = await hsFetch('/teams/' + team.id + '/activities?date=' + today + '&per_page=100');
+        const acts = hsToArray(raw);
+        acts.forEach(a => allActivities.push({
+          ...a,
+          _teamId: team.id,
+          _teamName: team.name || team.id,
+        }));
       } catch (e) { /* skip failed team */ }
     }));
 
-    if (!allActivities.length) { content.innerHTML = hsError('Ingen kommende aktiviteter fundet.'); return; }
+    if (!allActivities.length) {
+      content.innerHTML = hsError('Ingen kommende aktiviteter fundet.');
+      return;
+    }
 
-    // Sort by date
-    allActivities.sort((a, b) => a.starttime.localeCompare(b.starttime));
-
+    // Sort by starttime
+    allActivities.sort((a, b) => (a.starttime || '').localeCompare(b.starttime || ''));
+    hsShowAll = false;
     hsRenderActivityPicker(allActivities);
+
   } catch (e) {
     content.innerHTML = hsError('Fejl: ' + e.message);
   }
 }
 
-function hsIsMatch(activity) {
-  return MATCH_KEYWORDS.test(activity.name || '');
+function hsIsMatch(a) {
+  const name = (a.name || a.title || '').toLowerCase();
+  return MATCH_KEYWORDS.test(name);
 }
 
 function hsRenderActivityPicker(activities) {
   const content = document.getElementById('hs-modal-content');
   const filtered = activities.filter(hsIsMatch);
   const shown = hsShowAll ? activities : (filtered.length ? filtered : activities);
-  const hasFilter = filtered.length < activities.length;
-
-  // Check which holdsport IDs are already imported
+  const hasFilter = filtered.length > 0 && filtered.length < activities.length;
   const importedHsIds = new Set(DB.games.map(g => g.hsId).filter(Boolean));
 
   let h = '<div class="flex-between" style="margin-bottom:12px">';
   h += '<div class="modal-title" style="margin-bottom:0">Importer kampe fra Holdsport</div>';
   h += '<button class="btn-x" onclick="closeModal(\'hs-modal\')">✕</button></div>';
 
-  if (hasFilter) {
-    h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">';
-    h += '<span style="font-size:12px;color:var(--muted)">Viser ' + shown.length + ' af ' + activities.length + ' aktiviteter</span>';
-    h += '<button class="btn btn-ghost btn-sm" onclick="hsToggleShowAll(' + JSON.stringify(activities).replace(/</g,'\\u003c') + ')">';
-    h += hsShowAll ? '🔽 Vis kun kampe' : '🔼 Vis alle aktiviteter';
-    h += '</button></div>';
-  } else {
-    h += '<p style="font-size:12px;color:var(--muted);margin-bottom:12px">' + shown.length + ' kommende aktiviteter</p>';
+  h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">';
+  h += '<span style="font-size:12px;color:var(--muted)">Viser ' + shown.length + ' af ' + activities.length + ' aktiviteter</span>';
+  if (hasFilter || hsShowAll) {
+    const escapedActs = JSON.stringify(activities).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    h += '<button class="btn btn-ghost btn-sm" onclick=\'hsToggleShowAll(' + JSON.stringify(activities) + ')\'>';
+    h += hsShowAll ? '🔽 Kun kampe' : '🔼 Vis alle';
+    h += '</button>';
   }
-
-  h += '<div style="display:flex;gap:8px;margin-bottom:12px">';
-  h += '<button class="btn btn-ghost btn-sm" onclick="hsSelectAllActivities(true)">Vælg alle</button>';
-  h += '<button class="btn btn-ghost btn-sm" onclick="hsSelectAllActivities(false)">Fravælg alle</button>';
   h += '</div>';
 
-  h += '<div id="hs-activity-list">';
+  h += '<div style="display:flex;gap:8px;margin-bottom:10px">';
+  h += '<button class="btn btn-ghost btn-sm" onclick="hsSelectAll(true)">Vælg alle</button>';
+  h += '<button class="btn btn-ghost btn-sm" onclick="hsSelectAll(false)">Fravælg alle</button>';
+  h += '</div>';
+
+  h += '<div id="hs-act-list" style="max-height:55vh;overflow-y:auto">';
   shown.forEach((a, i) => {
-    const date = a.starttime ? a.starttime.split('T')[0] : '?';
-    const time = a.starttime ? a.starttime.split('T')[1]?.slice(0, 5) : '';
+    const name = a.name || a.title || '(uden navn)';
+    const raw = a.starttime || '';
+    const date = raw ? raw.split('T')[0] : '';
+    const time = raw && raw.includes('T') ? raw.split('T')[1].slice(0,5) : '';
     const alreadyIn = importedHsIds.has(String(a.id));
     const isMatch = hsIsMatch(a);
-    h += '<div class="hs-activity-row' + (alreadyIn ? ' hs-already' : '') + '" id="hsar-' + i + '">';
-    h += '<input type="checkbox" id="hsact-' + i + '" value="' + i + '" ' + (alreadyIn ? 'disabled' : 'checked') + ' style="flex-shrink:0">';
+
+    h += '<div class="hs-activity-row' + (alreadyIn ? ' hs-already' : '') + '">';
+    h += '<input type="checkbox" class="hs-act-cb" data-idx="' + i + '" '
+      + (alreadyIn ? 'disabled' : 'checked') + ' style="flex-shrink:0;width:16px;height:16px;cursor:pointer">';
     h += '<div style="flex:1;min-width:0">';
-    h += '<div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (a.name || '?') + (alreadyIn ? ' <span style="font-size:10px;color:var(--muted)">(allerede importeret)</span>' : '') + '</div>';
-    h += '<div style="font-size:11px;color:var(--muted)">' + fmtDate(date) + (time ? ' · ' + time : '') + ' · ' + a._teamName + '</div>';
+    h += '<div style="font-size:13px;font-weight:600">' + name;
+    if (alreadyIn) h += ' <span style="font-size:10px;color:var(--muted);font-weight:400">allerede importeret</span>';
     h += '</div>';
-    if (isMatch) h += '<span style="font-size:10px;color:var(--green);font-weight:700;flex-shrink:0">KAMP</span>';
+    h += '<div style="font-size:11px;color:var(--muted);margin-top:1px">';
+    if (date) h += fmtDate(date);
+    if (time) h += ' · ' + time;
+    h += ' · ' + (a._teamName || '');
+    if (a.place) h += ' · 📍 ' + a.place;
+    h += '</div></div>';
+    if (isMatch) h += '<span style="font-size:10px;font-weight:700;color:var(--green);flex-shrink:0;background:rgba(46,204,113,.15);padding:2px 6px;border-radius:4px;border:1px solid rgba(46,204,113,.3)">KAMP</span>';
     h += '</div>';
   });
   h += '</div>';
 
-  // Store activities for import step
-  h += '<script>window._hsActivities = ' + JSON.stringify(shown).replace(/</g, '\\u003c') + ';<\/script>';
+  // Store shown activities for import
+  window._hsShownActs = shown;
 
   h += '<div style="margin-top:14px;display:flex;gap:8px">';
   h += '<button class="btn btn-ghost" style="flex:1" onclick="closeModal(\'hs-modal\')">Annuller</button>';
@@ -1614,45 +1650,45 @@ function hsToggleShowAll(activities) {
   hsRenderActivityPicker(activities);
 }
 
-function hsSelectAllActivities(select) {
-  document.querySelectorAll('#hs-activity-list input[type=checkbox]:not(:disabled)').forEach(cb => { cb.checked = select; });
+function hsSelectAll(select) {
+  document.querySelectorAll('.hs-act-cb:not(:disabled)').forEach(cb => { cb.checked = select; });
 }
 
 function hsImportSelected() {
-  const activities = window._hsActivities || [];
+  const shown = window._hsShownActs || [];
   const selected = [];
-  document.querySelectorAll('#hs-activity-list input[type=checkbox]:checked:not(:disabled)').forEach(cb => {
-    const idx = parseInt(cb.value);
-    if (activities[idx]) selected.push(activities[idx]);
+  document.querySelectorAll('.hs-act-cb:checked:not(:disabled)').forEach(cb => {
+    const idx = parseInt(cb.dataset.idx);
+    if (shown[idx]) selected.push(shown[idx]);
   });
-
   if (!selected.length) { showToast('Ingen aktiviteter valgt'); return; }
 
   let imported = 0;
   selected.forEach(a => {
-    const date = a.starttime ? a.starttime.split('T')[0] : null;
+    const raw = a.starttime || '';
+    const date = raw ? raw.split('T')[0] : null;
     if (!date) return;
 
-    // Parse opponent from activity name: "Kamp mod HIK" → "HIK", "Ajax vs Brøndby" → "Brøndby"
-    const name = a.name || '';
+    const name = a.name || a.title || '';
+    // Parse opponent: strip common prefixes/patterns
     let opponent = name
       .replace(/^kamp\s+mod\s+/i, '')
       .replace(/^kamp\s*:\s*/i, '')
-      .replace(/^ajax\s*[-–vs]+\s*/i, '')
-      .replace(/\s*[-–vs]+\s*ajax.*$/i, '')
+      .replace(/^kamp\s+/i, '')
+      .replace(/^ajax\s*(2\s*)?[-–vsmod]+\s*/i, '')
+      .replace(/\s*[-–]\s*ajax\s*(2)?$/i, '')
       .trim() || name;
 
-    // Detect home/away: if "Ajax" appears first in name, it's home
+    // Home/away: Ajax first in name = home
     const ajaxFirst = /^ajax/i.test(name.trim());
-    const formattedOpp = ajaxFirst ? ('Ajax - ' + opponent) : opponent;
-
-    // Assign to team based on Holdsport team name (B or C)
     const teamName = (a._teamName || '').toLowerCase();
-    const isC = teamName.includes(' c') || teamName.endsWith('c') || teamName.includes('c-hold') || teamName.includes('2');
+    const isC = /\bc\b|hold c|c-hold|\bpige c\b|u11 c|\b2\b/.test(teamName);
     const team = isC ? 'c' : 'b';
+    const suffix = isC ? ' 2' : '';
+    const formattedOpp = ajaxFirst ? ('Ajax' + suffix + ' - ' + opponent) : opponent;
 
     DB.games.push({
-      id: 'g' + Date.now() + Math.random().toString(36).slice(2, 6),
+      id: 'g' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
       date,
       hsId: String(a.id),
       hsTeamId: String(a._teamId),
@@ -1675,13 +1711,7 @@ function hsImportSelected() {
 
 async function hsImportAttendees(gameId, team) {
   const g = DB.games.find(x => x.id === gameId);
-  if (!g) return;
-
-  // Need hsId and hsTeamId — if not set, ask user
-  if (!g.hsId) {
-    showToast('Denne kamp har intet Holdsport ID — importér den via Holdsport-knappen først');
-    return;
-  }
+  if (!g || !g.hsId) { showToast('Kamp har intet Holdsport ID'); return; }
 
   const modal = document.getElementById('hs-modal');
   const content = document.getElementById('hs-modal-content');
@@ -1689,14 +1719,14 @@ async function hsImportAttendees(gameId, team) {
   content.innerHTML = hsSpinner('Henter tilmeldte fra Holdsport...');
 
   try {
-    const users = await hsFetch('/activities/' + g.hsId + '/users');
-    const attended = users.filter(u => u.status === 'tilmeldt');
+    const raw = await hsFetch('/activities/' + g.hsId + '/users');
+    const users = hsToArray(raw);
+    const attended = users.filter(u => (u.status || '').toLowerCase() === 'tilmeldt');
 
     if (!attended.length) {
-      content.innerHTML = hsError('Ingen tilmeldte fundet for denne kamp på Holdsport.');
+      content.innerHTML = hsError('Ingen spillere har meldt sig tilmeldt på Holdsport endnu.');
       return;
     }
-
     hsRenderAttendeeMapping(attended, gameId, team);
   } catch (e) {
     content.innerHTML = hsError('Fejl: ' + e.message);
@@ -1705,86 +1735,66 @@ async function hsImportAttendees(gameId, team) {
 
 function hsRenderAttendeeMapping(hsUsers, gameId, team) {
   const content = document.getElementById('hs-modal-content');
-  const g = DB.games.find(x => x.id === gameId);
   const appPlayers = DB.players.filter(p => p.active);
-
-  // Load saved mapping from DB
   if (!DB.hsPlayerMap) DB.hsPlayerMap = {};
 
-  // Auto-map: try exact fullName match, then fuzzy
+  // Map each Holdsport user to an app player
   const mappings = hsUsers.map(u => {
-    const saved = DB.hsPlayerMap[u.name];
-    if (saved) return { hsUser: u, appNick: saved, confidence: 'saved' };
-
-    // Exact fullName match
-    const exact = appPlayers.find(p => p.fullName.toLowerCase() === u.name.toLowerCase());
+    const hsName = u.name || '';
+    // 1. Saved mapping
+    if (DB.hsPlayerMap[hsName]) return { hsUser: u, appNick: DB.hsPlayerMap[hsName], confidence: 'saved' };
+    // 2. Exact fullName match
+    const exact = appPlayers.find(p => p.fullName.toLowerCase() === hsName.toLowerCase());
     if (exact) return { hsUser: u, appNick: exact.nickname, confidence: 'exact' };
-
-    // Fuzzy: check if any word in fullName matches
-    const uWords = u.name.toLowerCase().split(/\s+/);
+    // 3. Fuzzy: ≥2 words match (min 3 chars each)
+    const uWords = hsName.toLowerCase().split(/\s+/).filter(w => w.length >= 3);
     const fuzzy = appPlayers.find(p => {
       const pWords = p.fullName.toLowerCase().split(/\s+/);
-      const matches = uWords.filter(w => w.length > 2 && pWords.includes(w));
-      return matches.length >= 2; // at least 2 words match
+      return uWords.filter(w => pWords.includes(w)).length >= 2;
     });
     if (fuzzy) return { hsUser: u, appNick: fuzzy.nickname, confidence: 'fuzzy' };
-
     return { hsUser: u, appNick: '', confidence: 'unknown' };
   });
 
+  const autoMapped = mappings.filter(m => m.confidence !== 'unknown');
   const needsReview = mappings.filter(m => m.confidence === 'unknown' || m.confidence === 'fuzzy');
-  const autoMapped = mappings.filter(m => m.confidence === 'exact' || m.confidence === 'saved');
 
   let h = '<div class="flex-between" style="margin-bottom:12px">';
   h += '<div class="modal-title" style="margin-bottom:0">Importer tilmeldte</div>';
   h += '<button class="btn-x" onclick="closeModal(\'hs-modal\')">✕</button></div>';
-
-  h += '<p style="font-size:12px;color:var(--muted);margin-bottom:12px">';
-  h += hsUsers.length + ' tilmeldte på Holdsport · ' + autoMapped.length + ' automatisk matchet';
+  h += '<p style="font-size:12px;color:var(--muted);margin-bottom:14px">';
+  h += hsUsers.length + ' tilmeldte · ' + mappings.filter(m => m.confidence === 'exact' || m.confidence === 'saved').length + ' automatisk matchet';
   if (needsReview.length) h += ' · <span style="color:#F5A623">' + needsReview.length + ' kræver gennemgang</span>';
   h += '</p>';
 
-  // Auto-mapped — show collapsed
-  if (autoMapped.length) {
-    h += '<div style="margin-bottom:12px">';
-    h += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--green);margin-bottom:6px">✓ Automatisk matchet</div>';
-    autoMapped.forEach((m, i) => {
-      const app = appPlayers.find(p => p.nickname === m.appNick);
-      h += '<div class="hs-mapping-row">';
-      h += '<div class="hs-mapping-hs">' + m.hsUser.name + '</div>';
-      h += '<div class="hs-mapping-arrow">→</div>';
-      h += '<select class="hs-mapping-select" id="hsmap-' + m.hsUser.id + '">';
-      h += '<option value="">– Ingen –</option>';
+  function renderGroup(list, label, color) {
+    if (!list.length) return '';
+    let s = '<div style="margin-bottom:14px">';
+    s += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:' + color + ';margin-bottom:8px">' + label + '</div>';
+    list.forEach(m => {
+      s += '<div class="hs-mapping-row">';
+      s += '<div class="hs-mapping-hs">' + (m.hsUser.name || '?') + '</div>';
+      s += '<div class="hs-mapping-arrow">→</div>';
+      s += '<select class="hs-mapping-select" id="hsmap-' + m.hsUser.id + '">';
+      s += '<option value="">– Ingen match –</option>';
       appPlayers.forEach(p => {
-        h += '<option value="' + p.nickname + '"' + (p.nickname === m.appNick ? ' selected' : '') + '>' + p.fullName + '</option>';
+        s += '<option value="' + p.nickname + '"' + (p.nickname === m.appNick ? ' selected' : '') + '>' + p.fullName + '</option>';
       });
-      h += '</select></div>';
+      s += '</select></div>';
     });
-    h += '</div>';
+    s += '</div>';
+    return s;
   }
 
-  // Needs review
-  if (needsReview.length) {
-    h += '<div style="margin-bottom:12px">';
-    h += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#F5A623;margin-bottom:6px">⚠️ Kræver gennemgang</div>';
-    needsReview.forEach(m => {
-      h += '<div class="hs-mapping-row">';
-      h += '<div class="hs-mapping-hs">' + m.hsUser.name + '</div>';
-      h += '<div class="hs-mapping-arrow">→</div>';
-      h += '<select class="hs-mapping-select" id="hsmap-' + m.hsUser.id + '" style="border-color:rgba(245,166,35,.5)">';
-      h += '<option value="">– Ingen match –</option>';
-      appPlayers.forEach(p => {
-        h += '<option value="' + p.nickname + '"' + (p.nickname === m.appNick ? ' selected' : '') + '>' + p.fullName + '</option>';
-      });
-      h += '</select></div>';
-    });
-    h += '</div>';
-  }
+  h += renderGroup(mappings.filter(m => m.confidence === 'exact' || m.confidence === 'saved'), '✓ Automatisk matchet', 'var(--green)');
+  h += renderGroup(mappings.filter(m => m.confidence === 'fuzzy'), '⚡ Usikker match — tjek venligst', '#F5A623');
+  h += renderGroup(mappings.filter(m => m.confidence === 'unknown'), '❓ Ikke matchet — vælg manuelt', 'var(--muted)');
 
-  // Store data for confirm step
-  h += '<script>window._hsMappings = ' + JSON.stringify(mappings).replace(/</g,'\\u003c') + '; window._hsGameId = "' + gameId + '"; window._hsTeam = "' + team + '";<\/script>';
+  window._hsMappings = mappings;
+  window._hsGameId   = gameId;
+  window._hsTeam     = team;
 
-  h += '<div style="margin-top:14px;display:flex;gap:8px">';
+  h += '<div style="display:flex;gap:8px;margin-top:14px">';
   h += '<button class="btn btn-ghost" style="flex:1" onclick="closeModal(\'hs-modal\')">Annuller</button>';
   h += '<button class="btn btn-ajax" style="flex:1" onclick="hsConfirmAttendees()">✅ Tilføj til opstilling</button>';
   h += '</div>';
@@ -1793,44 +1803,38 @@ function hsRenderAttendeeMapping(hsUsers, gameId, team) {
 }
 
 function hsConfirmAttendees() {
-  const gameId = window._hsGameId;
-  const team   = window._hsTeam;
+  const gameId   = window._hsGameId;
+  const team     = window._hsTeam;
   const mappings = window._hsMappings || [];
   const g = DB.games.find(x => x.id === gameId);
   if (!g) return;
 
-  // Read current select values (user may have adjusted)
+  if (!DB.hsPlayerMap) DB.hsPlayerMap = {};
   const resolved = mappings.map(m => {
     const el = document.getElementById('hsmap-' + m.hsUser.id);
     const nick = el ? el.value : m.appNick;
-    return { hsName: m.hsUser.name, appNick: nick };
+    if (nick) DB.hsPlayerMap[m.hsUser.name] = nick;
+    return { appNick: nick };
   }).filter(m => m.appNick);
 
-  // Save mapping for future use
-  if (!DB.hsPlayerMap) DB.hsPlayerMap = {};
-  resolved.forEach(m => { DB.hsPlayerMap[m.hsName] = m.appNick; });
-
-  // Build player list for the team
   const teamData = team === 'b' ? g.team1 : g.team2;
-  const existingNicks = new Set((teamData.players || []).map(p => p.name));
+  if (!teamData.players) teamData.players = [];
+  const existingNicks = new Set(teamData.players.map(p => p.name));
 
   resolved.forEach(m => {
-    if (existingNicks.has(m.appNick)) return; // already in lineup
+    if (existingNicks.has(m.appNick)) return;
     const player = DB.players.find(p => p.nickname === m.appNick);
-    const num = player ? (player.defaultNumber || 0) : 0;
-    (teamData.players = teamData.players || []).push({ slot: num, name: m.appNick, factor: 1 });
+    teamData.players.push({ slot: player?.defaultNumber || 0, name: m.appNick, factor: 1 });
   });
-
-  // Sort by slot number
   teamData.players.sort((a, b) => a.slot - b.slot);
 
   save();
   closeModal('hs-modal');
-  showToast('✓ ' + resolved.length + ' spillere tilføjet til opstilling');
+  showToast('✓ ' + resolved.length + ' spillere tilføjet');
   openGame(gameId, team);
 }
 
-// ── RENDER SETTINGS SECTION ──
+// ── SETTINGS SECTION ──
 
 function renderHoldsportSection() {
   const el = document.getElementById('hs-settings');
@@ -1838,23 +1842,20 @@ function renderHoldsportSection() {
   const url = (DB.settings || {}).hsWorkerUrl || '';
   let h = '<div class="card-title">🔗 Holdsport opsætning</div>';
   h += '<div class="field"><label>Cloudflare Worker URL</label>';
-  h += '<input type="url" id="hs-worker-url" class="inline-input" value="' + url + '" placeholder="https://holdsport-proxy.DITNAVN.workers.dev">';
+  h += '<input type="url" id="hs-worker-url" class="inline-input" value="' + (url || '') + '" placeholder="https://holdsport-proxy.DITNAVN.workers.dev">';
   h += '</div>';
   h += '<button class="btn btn-ajax btn-sm" style="width:100%" onclick="hsSaveWorkerUrl()">💾 Gem URL</button>';
-  if (url) {
-    h += '<div style="margin-top:8px;font-size:12px;color:var(--green)">✓ Worker konfigureret</div>';
-  } else {
-    h += '<div style="margin-top:8px;font-size:12px;color:var(--muted)">Indsæt din Worker URL for at aktivere Holdsport-import</div>';
-  }
+  h += '<div style="margin-top:8px;font-size:12px;color:' + (url ? 'var(--green)' : 'var(--muted)') + '">';
+  h += url ? '✓ Worker konfigureret' : 'Indsæt din Cloudflare Worker URL for at aktivere Holdsport-import';
+  h += '</div>';
   el.innerHTML = h;
 }
 
 // ── HELPERS ──
-
 function hsSpinner(msg) {
   return '<div style="text-align:center;padding:40px 20px">'
-    + '<div style="font-size:28px;margin-bottom:12px">⏳</div>'
-    + '<div style="color:var(--muted);font-size:14px">' + msg + '</div></div>';
+    + '<div style="font-size:28px;margin-bottom:12px;animation:spin 1s linear infinite;display:inline-block">⏳</div>'
+    + '<div style="color:var(--muted);font-size:14px;margin-top:8px">' + msg + '</div></div>';
 }
 function hsError(msg) {
   return '<div style="padding:20px">'
