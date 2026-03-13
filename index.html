@@ -1693,13 +1693,15 @@ function computePlayerStats() {
     if (g.motmB) { if (!stats[g.motmB]) stats[g.motmB]={b:0,c:0,cancel:0,bench:0,motm:0,goals:0,assists:0,saves:0}; stats[g.motmB].motm++; }
     if (g.motmC) { if (!stats[g.motmC]) stats[g.motmC]={b:0,c:0,cancel:0,bench:0,motm:0,goals:0,assists:0,saves:0}; stats[g.motmC].motm++; }
   });
-  // Coach game counts (b+c combined)
+  // Coach game counts (b+c combined) — respekterer coachFactorB/coachFactorC
   if ((document.getElementById('stat-show-coaches')?.checked)) {
     DB.games.filter(g => g.status === 'done').forEach(g => {
+      const fb = g.coachFactorB || 1;
+      const fc = g.coachFactorC || 1;
       [...(g.coachesB||[]), ...(g.coachesC||[])].forEach(name => {
         if (!stats[name]) stats[name] = {b:0,c:0,cancel:0,bench:0,motm:0,goals:0,assists:0,saves:0};
-        stats[name].b += (g.coachesB||[]).includes(name) ? 1 : 0;
-        stats[name].c += (g.coachesC||[]).includes(name) ? 1 : 0;
+        if ((g.coachesB||[]).includes(name)) stats[name].b += fb;
+        if ((g.coachesC||[]).includes(name)) stats[name].c += fc;
       });
     });
   }
