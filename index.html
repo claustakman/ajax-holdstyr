@@ -590,6 +590,8 @@ function mergeFromDrive() {
 
       // Drive vinder altid — erstat local data med Drive-data
       DB = remote;
+      // Genindlæs Worker URL fra de nye settings
+      if (typeof hsInit === 'function') hsInit();
 
       localStorage.setItem('ajax_holdstyr_v5', JSON.stringify(DB));
       lastSyncTime = new Date();
@@ -2260,11 +2262,12 @@ function hsConfirmAttendees() {
   const g = DB.games.find(x => x.id === gameId);
   if (!g) return;
 
-  if (!DB.hsPlayerMap) DB.hsPlayerMap = {};
+  if (!DB.settings) DB.settings = {};
+  if (!DB.settings.hsPlayerMap) DB.settings.hsPlayerMap = {};
   const resolved = mappings.map(m => {
     const el   = document.getElementById('hsmap-' + m.hsUser.id);
     const nick = el ? el.value : m.appNick;
-    if (nick) hsPlayerMap[m.hsUser.name] = nick;
+    if (nick) DB.settings.hsPlayerMap[m.hsUser.name] = nick;
     return nick;
   }).filter(Boolean);
 
