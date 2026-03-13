@@ -978,7 +978,7 @@ function buildGameDetailHTML(g, team) {
   h += '</div>';
 
   // Lineup
-  h += '<div class="section-label">👕 Opstilling</div>';
+  h += '<div class="section-label">👕 Opstilling' + (players.length ? ' <span style="font-weight:400;font-size:12px;color:var(--muted)">(' + players.length + ' spillere)</span>' : '') + '</div>';
   h += '<div style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap">';
   h += '<button class="copy-btn" onclick="copyLineupToNew(\'' + team + '\',\'' + g.id + '\')">📋 Brug til ny kamp</button>';
   h += '<button class="copy-btn" style="border-color:rgba(204,16,51,.4);background:rgba(204,16,51,.08);color:var(--ajax-red)" onclick="openEditGame(\'' + g.id + '\',\'' + team + '\')">✏️ Rediger</button>';
@@ -2196,16 +2196,20 @@ function hsRenderAttendeeMapping(hsUsers, gameId, team) {
 
   const mappings = hsUsers.map(u => {
     const hsName = u.name || '';
-    if (hsPlayerMap[hsName]) return { hsUser: u, appNick: hsPlayerMap[hsName], confidence: 'saved' };
+    if (hsPlayerMap[hsName]) {
+      const nick = hsPlayerMap[hsName];
+      const isCoach = !!(DB.coaches||[]).find(c => c.name.split(' ')[0] === nick || c.name === nick);
+      return { hsUser: u, appNick: nick, confidence: 'saved', isCoach };
+    }
     const exact = allMatchable.find(p => p.fullName.toLowerCase() === hsName.toLowerCase());
-    if (exact) return { hsUser: u, appNick: exact.nickname, confidence: 'exact' };
+    if (exact) return { hsUser: u, appNick: exact.nickname, confidence: 'exact', isCoach: !!exact._isCoach };
     const uWords = hsName.toLowerCase().split(/\s+/).filter(w => w.length >= 3);
     const fuzzy  = allMatchable.find(p => {
       const pWords = p.fullName.toLowerCase().split(/\s+/);
       return uWords.filter(w => pWords.includes(w)).length >= 2;
     });
-    if (fuzzy) return { hsUser: u, appNick: fuzzy.nickname, confidence: 'fuzzy' };
-    return { hsUser: u, appNick: '', confidence: 'unknown' };
+    if (fuzzy) return { hsUser: u, appNick: fuzzy.nickname, confidence: 'fuzzy', isCoach: !!fuzzy._isCoach };
+    return { hsUser: u, appNick: '', confidence: 'unknown', isCoach: false };
   });
 
   let h = '<div class="flex-between" style="margin-bottom:12px">';
@@ -2264,25 +2268,38 @@ function hsConfirmAttendees() {
 
   if (!DB.settings) DB.settings = {};
   if (!DB.settings.hsPlayerMap) DB.settings.hsPlayerMap = {};
-  const resolved = mappings.map(m => {
-    const el   = document.getElementById('hsmap-' + m.hsUser.id);
-    const nick = el ? el.value : m.appNick;
-    if (nick) DB.settings.hsPlayerMap[m.hsUser.name] = nick;
-    return nick;
-  }).filter(Boolean);
 
   const teamData = team === 'b' ? g.team1 : g.team2;
   if (!teamData.players) teamData.players = [];
-  const existing = new Set(teamData.players.map(p => p.name));
-  resolved.forEach(nick => {
-    if (existing.has(nick)) return;
-    const p = DB.players.find(x => x.nickname === nick);
-    teamData.players.push({ slot: p?.defaultNumber || 0, name: nick, factor: 1 });
+  const coachKey = team === 'b' ? 'coachesB' : 'coachesC';
+  if (!g[coachKey]) g[coachKey] = [];
+
+  let playersAdded = 0, coachesAdded = 0;
+  const existingPlayers = new Set(teamData.players.map(p => p.name));
+  const existingCoaches = new Set(g[coachKey]);
+
+  mappings.forEach(m => {
+    const el   = document.getElementById('hsmap-' + m.hsUser.id);
+    const nick = el ? el.value : m.appNick;
+    if (!nick) return;
+    DB.settings.hsPlayerMap[m.hsUser.name] = nick;
+    if (m.isCoach) {
+      // Tilføj som træner
+      if (!existingCoaches.has(nick)) { g[coachKey].push(nick); coachesAdded++; }
+    } else {
+      // Tilføj som spiller
+      if (!existingPlayers.has(nick)) {
+        const p = DB.players.find(x => x.nickname === nick);
+        teamData.players.push({ slot: p?.defaultNumber || 0, name: nick, factor: 1 });
+        playersAdded++;
+      }
+    }
   });
   teamData.players.sort((a, b) => a.slot - b.slot);
 
   save(); closeModal('hs-modal');
-  showToast('✓ ' + resolved.length + ' spillere tilføjet');
+  const msg = [playersAdded ? playersAdded + ' spillere' : '', coachesAdded ? coachesAdded + ' trænere' : ''].filter(Boolean).join(' + ');
+  showToast('✓ ' + (msg || 'Ingen nye') + ' tilføjet');
   openGame(gameId, team);
 }
 
