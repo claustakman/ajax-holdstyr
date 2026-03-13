@@ -1280,7 +1280,9 @@ function setEditPickerSort(sort, id, team) {
   const active = activePlayersSorted();
   const sel = editSelected[id + team] || new Set();
   const numMap = {};
-  players.forEach(p => { numMap[p.name] = p.slot; });
+  // Brug eksisterende numre fra spillere i kampen
+  const gPlayers = (team === 'b' ? g.team1 : g.team2).players || [];
+  gPlayers.forEach(p => { numMap[p.name] = p.slot; });
   // Also pick up any numbers typed in the current picker
   active.forEach(p => {
     const el = document.getElementById('pnum-' + safeId(p.nickname));
@@ -1322,8 +1324,11 @@ function openEditGame(id, team) {
 function buildPlayerPickerHTML(active, selectedNames, numMap, gameId, team) {
   const g = DB.games.find(x => x.id === gameId);
   const booked = (g && g.date) ? getBookedOnDate(g.date, gameId, team) : new Set();
-  // Sort active players by editPickerSort
+  // Sort active players by editPickerSort — valgte altid øverst
   const sorted = [...active].sort((a, b) => {
+    const selA = selectedNames.has(a.nickname) ? 0 : 1;
+    const selB = selectedNames.has(b.nickname) ? 0 : 1;
+    if (selA !== selB) return selA - selB;
     if (editPickerSort === 'number') {
       const na = numMap[a.nickname] || a.defaultNumber || 999;
       const nb = numMap[b.nickname] || b.defaultNumber || 999;
