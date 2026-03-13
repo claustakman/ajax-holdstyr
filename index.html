@@ -2036,17 +2036,26 @@ function hsSelectAll(s) {
 }
 
 // Resolve Holdsport team name to a slot ('b', 'c', 'b2', etc.) using holdkonfiguration
-function hsResolveSlot(teamName, teamCfg) {
-  const tn = teamName.toLowerCase();
-  // Check each configured team by hsName (longest match wins)
+function hsResolveSlot(teamName, teamCfg, activityName) {
+  // Søg på både holdnavn og aktivitetsnavn — longest match vinder
+  const candidates = [teamName || '', activityName || ''].map(s => s.toLowerCase());
   if (teamCfg && teamCfg.length) {
-    const matches = teamCfg
-      .filter(t => t.hsName && tn.includes(t.hsName.toLowerCase()))
-      .sort((a, b) => b.hsName.length - a.hsName.length); // longest match first
-    if (matches.length) return matches[0].slot;
+    const matches = [];
+    candidates.forEach(tn => {
+      teamCfg.forEach(t => {
+        if (t.hsName && tn.includes(t.hsName.toLowerCase()) && !matches.find(m => m.slot === t.slot)) {
+          matches.push(t);
+        }
+      });
+    });
+    if (matches.length) {
+      matches.sort((a, b) => b.hsName.length - a.hsName.length);
+      return matches[0].slot;
+    }
   }
   // Fallback heuristic
-  if (/\bc\b|hold c|c-hold|pige c|u11 c/.test(tn)) return 'c';
+  const combined = candidates.join(' ');
+  if (/\bc\b|hold c|c-hold|pige c|u11 c| 2\b/.test(combined)) return 'c';
   return 'b';
 }
 // Keep old name as alias for background coach fetch
@@ -2126,7 +2135,7 @@ function hsImportSelected() {
       .replace(/^kamp\s*(mod\s*|vs\.?\s*)?/i, '')
       .trim() || name;
     // Determine slot from holdkonfiguration
-    const team = hsResolveSlot(a._teamName || '', teamCfg);
+    const team = hsResolveSlot(a._teamName || '', teamCfg, a.name || a.title || '');
     // Strip any leading 'vs ' from cleanOpp before prepending (avoids 'vs vs X')
 
     const fmtOpp = 'vs ' + cleanOpp;
