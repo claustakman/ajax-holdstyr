@@ -494,6 +494,7 @@ function initDriveSync() {
     });
     gisReady = true;
     maybeEnableSync();
+    if (typeof updateLoginWarning === 'function') updateLoginWarning();
   };
   document.head.appendChild(gisScript);
 }
@@ -734,9 +735,16 @@ let playerYearFilter = 'all';
 let statYearFilter = 'all';
 
 function loadData() {
-  try { const r = localStorage.getItem('ajax_holdstyr_v5'); if (r) return JSON.parse(r); } catch(e) {}
-  // Ingen local data — returner tomt DB. Drive-data indlæses ved login.
-  return { players: JSON.parse(JSON.stringify(SEED)).players, games: [], coaches: [], settings: {} };
+  try {
+    const r = localStorage.getItem('ajax_holdstyr_v5');
+    if (r) {
+      const d = JSON.parse(r);
+      // Gyldigt hvis det har spillere og enten kampe eller coaches (dvs. rigtige data)
+      if (d && d.players && d.players.length && (d.games && d.games.length || d.coaches && d.coaches.length)) return d;
+    }
+  } catch(e) {}
+  // Ingen gyldig local data — brug seed som udgangspunkt indtil Drive indlæses
+  return JSON.parse(JSON.stringify(SEED));
 }
 function save() {
   localStorage.setItem('ajax_holdstyr_v5', JSON.stringify(DB));
@@ -744,7 +752,9 @@ function save() {
 }
 function updateLoginWarning() {
   const el = document.getElementById('login-warning');
-  if (el) el.style.display = isSignedIn() ? 'none' : 'block';
+  if (!el) return;
+  // Vis kun bjælken når GIS er klar (ellers kan driveLogin() ikke køre)
+  el.style.display = (isSignedIn() || !gisReady) ? 'none' : 'block';
 }
 function resetToSeed() {
   if (!confirm('Nulstil alle data til original import?')) return;
@@ -967,23 +977,19 @@ function buildGameDetailHTML(g, team) {
 
   // Lineup
   h += '<div class="section-label">👕 Opstilling</div>';
-  h += '<div style="margin-bottom:10px">';
-  if (players.length) {
-    const bookedInDetail = getBookedOnDate(g.date, g.id, team);
-    players.forEach(p => {
-      const dbl = bookedInDetail.has(p.name) ? ' <span style="color:#F5A623;font-size:10px;font-weight:700">⚠️</span>' : '';
-      h += '<span class="player-pill"><span class="pill-num">#' + p.slot + '</span>' + p.name + dbl + '</span>';
-    });
-  } else {
-    h += '<span style="color:var(--muted);font-size:13px">Ingen spillere planlagt</span>';
+  h += '<div style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap">';
+  h += '<button class="copy-btn" onclick="copyLineupToNew(\'' + team + '\',\'' + g.id + '\')">📋 Brug til ny kamp</button>';
+  h += '<button class="copy-btn" style="border-color:rgba(204,16,51,.4);background:rgba(204,16,51,.08);color:var(--ajax-red)" onclick="openEditGame(\'' + g.id + '\',\'' + team + '\')">✏️ Rediger</button>';
+  if ((DB.settings||{}).hsWorkerUrl) {
+    h += '<button class="copy-btn" style="border-color:rgba(46,204,113,.4);background:rgba(46,204,113,.08);color:var(--green)" onclick="hsImportAttendees(\'' + g.id + '\',\'' + team + '\')">📥 Importer fra Holdsport</button>';
   }
-  h += ' <button class="copy-btn" onclick="copyLineupToNew(\'' + team + '\',\'' + g.id + '\')">📋 Brug til ny kamp</button>';
-  h += ' <button class="copy-btn" style="border-color:rgba(204,16,51,.4);background:rgba(204,16,51,.08);color:var(--ajax-red)" onclick="openEditGame(\'' + g.id + '\',\'' + team + '\')">✏️ Rediger</button>';
   h += '</div>';
+  if (!players.length) {
+    h += '<div style="color:var(--muted);font-size:13px;margin-bottom:10px">Ingen spillere planlagt</div>';
+  }
 
-  // Participation
+  // Participation (also serves as lineup display)
   if (players.length) {
-    h += '<div class="section-label">✅ Bekræft deltagelse</div>';
     h += '<div id="crows-' + g.id + '-' + team + '">' + buildPSRows(g, team) + '</div>';
   }
 
@@ -1004,7 +1010,7 @@ function buildGameDetailHTML(g, team) {
   const focus = g.focus || ['','',''];
   for (let i = 0; i < 3; i++) {
     h += '<div class="focus-item"><div class="focus-num">' + (i+1) + '</div>';
-    h += '<input class="inline-input" type="text" value="' + (focus[i]||'').replace(/"/g,'&quot;') + '" placeholder="Fokuspunkt ' + (i+1) + '..." onchange="saveFocus(\'' + g.id + '\',' + i + ',this.value)"></div>';
+    h += '<textarea class="inline-input" rows="2" style="resize:vertical;min-height:48px;line-height:1.4;font-family:inherit" placeholder="Fokuspunkt ' + (i+1) + '..." onchange="saveFocus(\'' + g.id + '\',' + i + ',this.value)">' + (focus[i]||'').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</textarea></div>';
   }
 
   // Result
@@ -1037,11 +1043,7 @@ function buildGameDetailHTML(g, team) {
   h += '<div class="section-label">⚠️ Hvad gik knap så godt?</div>';
   h += '<div class="review-block"><textarea placeholder="Skriv her..." onchange="saveReview(\'' + g.id + '\',\'wentBad\',this.value)">' + (g.wentBad||'') + '</textarea></div>';
 
-  // Holdsport import tilmeldte
-  if ((DB.settings||{}).hsWorkerUrl) {
-    h += '<button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:8px" onclick="hsImportAttendees(\'' + g.id + '\',\'' + team + '\')">';
-    h += '📥 Importer tilmeldte fra Holdsport</button>';
-  }
+  // (Holdsport import moved to Opstilling section)
 
   // Actions
   h += '<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">';
@@ -2112,13 +2114,14 @@ function hsImportSelected() {
     cleanOpp = cleanOpp
       .replace(/^ajax\s*2?\s*[-–]\s*/i, '')
       .replace(/\s*[-–]\s*ajax\s*2?\s*$/i, '')
+      .replace(/^vs\.?\s*/i, '')
       .replace(/^kamp\s*(mod\s*|vs\.?\s*)?/i, '')
       .trim() || name;
     // Determine slot from holdkonfiguration
     const team = hsResolveSlot(a._teamName || '', teamCfg);
     // Strip any leading 'vs ' from cleanOpp before prepending (avoids 'vs vs X')
-    const cleanOpp2 = cleanOpp.replace(/^vs.?\s*/i, '').trim() || cleanOpp;
-    const fmtOpp = 'vs ' + cleanOpp2;
+
+    const fmtOpp = 'vs ' + cleanOpp;
 
     DB.games.push({
       id: 'g' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
