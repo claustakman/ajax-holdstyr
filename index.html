@@ -1271,6 +1271,29 @@ function copyLineupToNew(team, fromGameId) {
 
 // ── EDIT LINEUP ──
 let editSelected = {};
+let editPickerSort = 'name';
+
+function setEditPickerSort(sort, id, team) {
+  editPickerSort = sort;
+  const g = DB.games.find(x => x.id === id); if (!g) return;
+  const players = (sort === 'b' ? g.team1 : (sort === 'c' ? g.team2 : (id ? (team==='b'?g.team1:g.team2) : g.team1))).players || [];
+  const active = activePlayersSorted();
+  const sel = editSelected[id + team] || new Set();
+  const numMap = {};
+  players.forEach(p => { numMap[p.name] = p.slot; });
+  // Also pick up any numbers typed in the current picker
+  active.forEach(p => {
+    const el = document.getElementById('pnum-' + safeId(p.nickname));
+    if (el && el.value) numMap[p.nickname] = parseInt(el.value);
+  });
+  document.getElementById('edit-player-grid').innerHTML = buildPlayerPickerHTML(active, sel, numMap, id, team);
+  // Update button styles
+  ['name','number'].forEach(s => {
+    const btn = document.getElementById('eps-' + s);
+    if (btn) { btn.style.borderColor = s === sort ? 'var(--ajax-red)' : ''; btn.style.color = s === sort ? 'var(--ajax-red)' : ''; }
+  });
+}
+
 function openEditGame(id, team) {
   const g = DB.games.find(x => x.id === id); if (!g) return;
   const players = (team === 'b' ? g.team1 : g.team2).players || [];
@@ -1282,7 +1305,12 @@ function openEditGame(id, team) {
   let h = '<div class="flex-between" style="margin-bottom:12px">';
   h += '<div class="modal-title" style="margin-bottom:0">Rediger Hold ' + team.toUpperCase() + '</div>';
   h += '<button class="btn-x" onclick="openGame(\'' + id + '\',\'' + team + '\')">✕</button></div>';
-  h += '<div style="font-size:13px;color:var(--muted);margin-bottom:10px">Klik for at vælge/fravælge. Juster numre. Rødt = dubletnummer.</div>';
+  h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">';
+  h += '<div style="font-size:13px;color:var(--muted)">Klik for at vælge/fravælge. Rødt = dubletnummer.</div>';
+  h += '<div style="display:flex;gap:4px">';
+  h += '<button class="btn btn-ghost btn-sm" id="eps-name" onclick="setEditPickerSort(\'name\',\'' + id + '\',\'' + team + '\')" style="' + (editPickerSort==='name'?'border-color:var(--ajax-red);color:var(--ajax-red)':'') + '">A–Z</button>';
+  h += '<button class="btn btn-ghost btn-sm" id="eps-number" onclick="setEditPickerSort(\'number\',\'' + id + '\',\'' + team + '\')" style="' + (editPickerSort==='number'?'border-color:var(--ajax-red);color:var(--ajax-red)':'') + '">Nr</button>';
+  h += '</div></div>';
   h += '<div id="edit-player-grid">' + buildPlayerPickerHTML(active, selectedNames, numMap, id, team) + '</div>';
   h += '<div style="margin-top:14px;display:flex;gap:8px">';
   h += '<button class="btn btn-ghost" style="flex:1" onclick="openGame(\'' + id + '\',\'' + team + '\')">Annuller</button>';
@@ -1294,7 +1322,16 @@ function openEditGame(id, team) {
 function buildPlayerPickerHTML(active, selectedNames, numMap, gameId, team) {
   const g = DB.games.find(x => x.id === gameId);
   const booked = (g && g.date) ? getBookedOnDate(g.date, gameId, team) : new Set();
-  return '<div class="player-picker">' + active.map(p => {
+  // Sort active players by editPickerSort
+  const sorted = [...active].sort((a, b) => {
+    if (editPickerSort === 'number') {
+      const na = numMap[a.nickname] || a.defaultNumber || 999;
+      const nb = numMap[b.nickname] || b.defaultNumber || 999;
+      return na - nb;
+    }
+    return a.fullName.localeCompare(b.fullName, 'da');
+  });
+  return '<div class="player-picker">' + sorted.map(p => {
     const sel = selectedNames.has(p.nickname);
     const num = numMap[p.nickname] || p.defaultNumber || '';
     const yr = p.birthYear ? ' ' + p.birthYear : '';
@@ -2137,8 +2174,8 @@ function hsImportSelected() {
     // Determine slot from holdkonfiguration
     const team = hsResolveSlot(a._teamName || '', teamCfg, a.name || a.title || '');
     // Strip any leading 'vs ' from cleanOpp before prepending (avoids 'vs vs X')
-
-    const fmtOpp = 'vs ' + cleanOpp;
+    const cleanOpp2 = cleanOpp.replace(/^vs.?s*/i, '').trim() || cleanOpp;
+    const fmtOpp = 'vs ' + cleanOpp2;
 
     DB.games.push({
       id: 'g' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
