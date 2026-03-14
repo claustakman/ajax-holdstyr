@@ -483,12 +483,13 @@ function initDriveSync() {
   gapiScript.src = 'https://apis.google.com/js/api.js';
   gapiScript.onload = function() {
     gapi.load('client', function() {
-      gapi.client.init({
-        apiKey: '',
-        discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
-      }).then(function() {
+      // Brug gapi.client.load direkte — mere pålideligt end init med discoveryDocs
+      gapi.client.load('https://sheets.googleapis.com/$discovery/rest?version=v4').then(function() {
         gapiReady = true;
         maybeEnableSync();
+      }).catch(function(e) {
+        console.error('Sheets API load failed:', e);
+        updateSyncStatus('error', 'Google Sheets API kunne ikke indlæses');
       });
     });
   };
@@ -506,8 +507,14 @@ function initDriveSync() {
           return;
         }
         try { sessionStorage.setItem('gapi_token', JSON.stringify(response)); } catch(e) {}
+        if (!(DB.settings || {}).sheetId) {
+          updateSyncStatus('idle', 'Indtast Sheet ID i Opsætning');
+          return;
+        }
         updateSyncStatus('syncing', 'Henter data...');
-        loadFromSheet();
+        loadFromSheet().catch(function(e) {
+          updateSyncStatus('error', 'Fejl: ' + e.message);
+        });
       }
     });
     gisReady = true;
@@ -532,9 +539,17 @@ function maybeEnableSync() {
           return;
         }
         updateSyncStatus('syncing', 'Genopretter forbindelse...');
+        // Timeout: hvis loadFromSheet hænger mere end 8 sek, giv op
+        const syncTimeout = setTimeout(function() {
+          sessionStorage.removeItem('gapi_token');
+          gapi.client.setToken(null);
+          updateSyncStatus('idle', 'Ikke logget ind — prøv igen');
+        }, 8000);
         loadFromSheet().then(function() {
+          clearTimeout(syncTimeout);
           showLoggedIn();
-        }).catch(function() {
+        }).catch(function(e) {
+          clearTimeout(syncTimeout);
           sessionStorage.removeItem('gapi_token');
           gapi.client.setToken(null);
           updateSyncStatus('idle', 'Ikke logget ind');
