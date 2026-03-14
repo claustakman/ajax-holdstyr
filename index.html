@@ -471,7 +471,7 @@ function clearFilters(){
 // ── GOOGLE SHEETS SYNC ──
 const CLIENT_ID = '298754319065-u3g88urugnh73so5requ30hmkeji71u8.apps.googleusercontent.com';
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
-const SHEET_CELL = 'Data!A1';
+const SHEET_CELL = 'A1'; // Bruger første fane uanset navn
 
 let tokenClient = null;
 let gapiReady = false;
@@ -611,7 +611,7 @@ async function loadFromSheet() {
   const val = resp.result.values && resp.result.values[0] && resp.result.values[0][0];
   if (!val) {
     // Sheet er tomt — gem nuværende DB
-    await saveToSheet();
+    await doSaveToDrive();
     showLoggedIn();
     showToast('✓ Nyt sheet initialiseret');
     return;
