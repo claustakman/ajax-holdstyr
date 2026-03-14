@@ -526,6 +526,11 @@ function maybeEnableSync() {
       if (saved) {
         const tok = JSON.parse(saved);
         gapi.client.setToken(tok);
+        sheetId = (DB.settings || {}).sheetId || null;
+        if (!sheetId) {
+          updateSyncStatus('idle', 'Indtast Sheet ID i Opsætning');
+          return;
+        }
         updateSyncStatus('syncing', 'Genopretter forbindelse...');
         loadFromSheet().then(function() {
           showLoggedIn();
@@ -537,7 +542,7 @@ function maybeEnableSync() {
         return;
       }
     } catch(e) {}
-    updateSyncStatus('idle', 'Ikke logget ind');
+    updateSyncStatus('idle', (DB.settings||{}).sheetId ? 'Ikke logget ind' : 'Indtast Sheet ID i Opsætning');
   }
 }
 
@@ -701,8 +706,18 @@ function save() {
 function updateLoginWarning() {
   const el = document.getElementById('login-warning');
   if (!el) return;
-  // Vis kun bjælken når GIS er klar (ellers kan driveLogin() ikke køre)
-  el.style.display = (isSignedIn() || !gisReady) ? 'none' : 'block';
+  if (isSignedIn() || !gisReady) { el.style.display = 'none'; return; }
+  const hasSheet = !!(DB.settings && DB.settings.sheetId);
+  if (!hasSheet) {
+    el.textContent = '⚙️ Gå til Opsætning og indtast Google Sheets ID for at aktivere sync';
+    el.style.background = '#1a3a5c';
+    el.onclick = function() { showPage('eksport'); renderTeamConfig(); renderSheetSettings(); };
+  } else {
+    el.textContent = '⚠️ Ikke logget på Google Sheets — ændringer gemmes kun lokalt. Tryk her for at logge ind.';
+    el.style.background = '';
+    el.onclick = driveLogin;
+  }
+  el.style.display = 'block';
 }
 
 // ── GOOGLE SHEETS SETTINGS ──
