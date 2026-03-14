@@ -295,7 +295,7 @@ input, textarea, select { font-size: 16px !important; } /* prevent iOS zoom */
   <button class="active" onclick="showPage('kampe')">🏆 Kampe</button>
   <button onclick="showPage('spillere')">👥 Spillere</button>
   <button onclick="showPage('statistik')">📊 Statistik</button>
-  <button onclick="showPage('eksport');renderTeamConfig()">⚙️ Opsætning</button>
+  <button onclick="showPage('eksport');renderTeamConfig();renderSheetSettings()">⚙️ Opsætning</button>
 </nav>
 <main>
 
@@ -402,6 +402,18 @@ input, textarea, select { font-size: 16px !important; } /* prevent iOS zoom */
 <!-- EKSPORT -->
 <div id="page-eksport" class="page">
   <div class="page-title">Opsætning</div>
+  <div class="card" id="sheet-settings">
+    <div class="card-title">📊 Google Sheets sync</div>
+    <div class="field">
+      <label>Sheet ID <span style="font-size:10px;color:var(--muted);font-weight:400">(fra URL: docs.google.com/spreadsheets/d/<strong>ID</strong>/edit)</span></label>
+      <input type="text" class="inline-input" id="sheet-id-input" placeholder="fx 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms" oninput="sheetIdInputChanged()">
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-ajax" style="flex:1" onclick="saveSheetId()">💾 Gem Sheet ID</button>
+      <a id="sheet-link" href="#" target="_blank" class="btn btn-ghost" style="flex:0 0 auto;text-decoration:none;display:none">📊 Åbn</a>
+    </div>
+    <div style="margin-top:8px;font-size:12px;color:var(--muted)" id="sheet-status"></div>
+  </div>
   <div class="card" id="hs-settings"></div>
   <div class="card" id="team-config-card">
     <div class="card-title">⚽ Holdkonfiguration</div>
@@ -454,19 +466,17 @@ function clearFilters(){
   const sg=document.getElementById('sort-games');if(sg)sg.value='date-desc';
   renderGames();
 }
-
-// ── GOOGLE DRIVE SYNC ──
+// ── GOOGLE SHEETS SYNC ──
 const CLIENT_ID = '493912601923-33roknfvvqpnr3qc8jot5qt5f83b3lbn.apps.googleusercontent.com';
-const SCOPES = 'https://www.googleapis.com/auth/drive.appdata';
-const DRIVE_FILENAME = 'ajax-holdstyr-data.json';
-const DRIVE_FOLDER = 'appDataFolder';
+const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
+const SHEET_CELL = 'Data!A1';
 
-let driveFileId = null;
 let tokenClient = null;
 let gapiReady = false;
 let gisReady = false;
 let lastSyncTime = null;
 let syncDebounceTimer = null;
+let sheetId = null;
 
 function initDriveSync() {
   const gapiScript = document.createElement('script');
@@ -475,7 +485,7 @@ function initDriveSync() {
     gapi.load('client', function() {
       gapi.client.init({
         apiKey: '',
-        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+        discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
       }).then(function() {
         gapiReady = true;
         maybeEnableSync();
@@ -495,13 +505,9 @@ function initDriveSync() {
           updateSyncStatus('error', 'Login fejlede: ' + response.error);
           return;
         }
-        updateSyncStatus('syncing', 'Logger ind...');
-        // Persist token so page refresh doesn't log out
         try { sessionStorage.setItem('gapi_token', JSON.stringify(response)); } catch(e) {}
-        findOrCreateDriveFile().then(function() {
-          // After login: hent Drive-data (Drive vinder altid over local)
-          mergeFromDrive();
-        });
+        updateSyncStatus('syncing', 'Henter data...');
+        loadFromSheet();
       }
     });
     gisReady = true;
@@ -514,21 +520,16 @@ function initDriveSync() {
 function maybeEnableSync() {
   if (gapiReady && gisReady) {
     document.getElementById('sync-login-btn').disabled = false;
-    // Try to restore token from sessionStorage (survives page refresh)
+    sheetId = (DB.settings || {}).sheetId || null;
     try {
       const saved = sessionStorage.getItem('gapi_token');
       if (saved) {
         const tok = JSON.parse(saved);
-        // Check token not expired (expires_in is in seconds from issue time)
         gapi.client.setToken(tok);
         updateSyncStatus('syncing', 'Genopretter forbindelse...');
-        findOrCreateDriveFile().then(function() {
-          updateSyncStatus('ok', 'Synkroniseret');
-          document.getElementById('sync-login-btn').style.display = 'none';
-          document.getElementById('sync-logout-btn').style.display = 'inline-flex';
-          document.getElementById('sync-manual-btn').style.display = 'inline-flex';
+        loadFromSheet().then(function() {
+          showLoggedIn();
         }).catch(function() {
-          // Token expired — clear and show login
           sessionStorage.removeItem('gapi_token');
           gapi.client.setToken(null);
           updateSyncStatus('idle', 'Ikke logget ind');
@@ -542,7 +543,12 @@ function maybeEnableSync() {
 
 function driveLogin() {
   if (!gapiReady || !gisReady) { updateSyncStatus('error', 'Indlæser Google API...'); return; }
-  tokenClient.requestAccessToken({prompt: 'consent'});
+  if (!sheetId) {
+    showToast('Indtast Sheet ID i Opsætning først', 3000, true);
+    if (typeof showPage === 'function') showPage('eksport');
+    return;
+  }
+  tokenClient.requestAccessToken({ prompt: 'consent' });
 }
 
 function driveLogout() {
@@ -550,12 +556,13 @@ function driveLogout() {
     const token = gapi.client.getToken();
     if (token) { google.accounts.oauth2.revoke(token.access_token); gapi.client.setToken(null); }
   } catch(e) {}
-  driveFileId = null; lastSyncTime = null;
+  lastSyncTime = null;
   try { sessionStorage.removeItem('gapi_token'); } catch(e) {}
   updateSyncStatus('idle', 'Ikke logget ind');
   document.getElementById('sync-login-btn').style.display = 'inline-flex';
   document.getElementById('sync-logout-btn').style.display = 'none';
   document.getElementById('sync-manual-btn').style.display = 'none';
+  document.getElementById('sync-revisions-btn').style.display = 'none';
   showToast('Logget ud af Google');
 }
 
@@ -563,88 +570,71 @@ function isSignedIn() {
   try { const token = gapi && gapi.client && gapi.client.getToken(); return !!(token && token.access_token); } catch(e) { return false; }
 }
 
-function findOrCreateDriveFile() {
-  return gapi.client.drive.files.list({
-    spaces: DRIVE_FOLDER,
-    fields: 'files(id, name, modifiedTime)',
-    q: "name='" + DRIVE_FILENAME + "'"
-  }).then(function(response) {
-    const files = response.result.files;
-    if (files && files.length > 0) { driveFileId = files[0].id; return Promise.resolve(); }
-    else { return createDriveFile(); }
+function showLoggedIn() {
+  updateSyncStatus('ok', 'Synkroniseret ' + fmtTime(new Date()));
+  document.getElementById('sync-login-btn').style.display = 'none';
+  document.getElementById('sync-logout-btn').style.display = 'inline-flex';
+  document.getElementById('sync-manual-btn').style.display = 'inline-flex';
+  document.getElementById('sync-revisions-btn').style.display = 'inline-flex';
+}
+
+async function loadFromSheet() {
+  sheetId = (DB.settings || {}).sheetId || sheetId;
+  if (!sheetId) throw new Error('Intet Sheet ID');
+  const resp = await gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId: sheetId,
+    range: SHEET_CELL
   });
-}
-
-function createDriveFile() {
-  const metadata = { name: DRIVE_FILENAME, parents: [DRIVE_FOLDER], mimeType: 'application/json' };
-  const content = JSON.stringify(DB);
-  const boundary = 'ajax_holdstyr_boundary';
-  const body = '--' + boundary + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' +
-    JSON.stringify(metadata) + '\r\n--' + boundary + '\r\nContent-Type: application/json\r\n\r\n' +
-    content + '\r\n--' + boundary + '--';
-  return gapi.client.request({
-    path: 'https://www.googleapis.com/upload/drive/v3/files',
-    method: 'POST',
-    params: {uploadType: 'multipart'},
-    headers: {'Content-Type': 'multipart/related; boundary=' + boundary},
-    body: body
-  }).then(function(response) { driveFileId = response.result.id; });
-}
-
-// Merge Drive data into local DB — local changes win, Drive fills in missing games
-function mergeFromDrive() {
-  if (!driveFileId) return;
-  updateSyncStatus('syncing', 'Synkroniserer...');
-  gapi.client.drive.files.get({ fileId: driveFileId, alt: 'media' }).then(function(response) {
-    try {
-      const remote = typeof response.result === 'string' ? JSON.parse(response.result) : response.result;
-      if (!remote || !remote.games || !remote.players) throw new Error('Ugyldigt format');
-
-      // Drive vinder altid — erstat local data med Drive-data
-      DB = remote;
-      // Genindlæs Worker URL fra de nye settings
-      if (typeof hsInit === 'function') hsInit();
-
-      localStorage.setItem('ajax_holdstyr_v5', JSON.stringify(DB));
-      lastSyncTime = new Date();
-      updateSyncStatus('ok', 'Synkroniseret ' + fmtTime(lastSyncTime));
-      document.getElementById('sync-login-btn').style.display = 'none';
-      document.getElementById('sync-logout-btn').style.display = 'inline-flex';
-      document.getElementById('sync-manual-btn').style.display = 'inline-flex';
-      renderGames();
-      if (document.getElementById('page-spillere').classList.contains('active')) renderPlayers();
-      if (document.getElementById('page-statistik').classList.contains('active')) renderStats();
-      showToast('✓ Synkroniseret med Google Drive');
-      // Push merged result back to Drive
-      doSaveToDrive();
-    } catch(e) {
-      updateSyncStatus('error', 'Fejl ved synkronisering');
-    }
-  }).catch(function() { updateSyncStatus('error', 'Netværksfejl'); });
+  const val = resp.result.values && resp.result.values[0] && resp.result.values[0][0];
+  if (!val) {
+    // Sheet er tomt — gem nuværende DB
+    await saveToSheet();
+    showLoggedIn();
+    showToast('✓ Nyt sheet initialiseret');
+    return;
+  }
+  try {
+    const remote = JSON.parse(val);
+    if (!remote || !remote.games || !remote.players) throw new Error('Ugyldigt format');
+    DB = remote;
+    if (typeof hsInit === 'function') hsInit();
+    localStorage.setItem('ajax_holdstyr_v5', JSON.stringify(DB));
+    lastSyncTime = new Date();
+    showLoggedIn();
+    renderGames();
+    if (typeof renderCoaches === 'function') renderCoaches();
+    if (typeof renderTeamConfig === 'function') renderTeamConfig();
+    showToast('✓ Data hentet fra Google Sheets');
+  } catch(e) {
+    throw new Error('Parse fejl: ' + e.message);
+  }
 }
 
 function saveToDrive() {
-  if (!isSignedIn() || !driveFileId) return;
+  if (!isSignedIn() || !sheetId) return;
   clearTimeout(syncDebounceTimer);
   syncDebounceTimer = setTimeout(doSaveToDrive, 1500);
 }
 
-function doSaveToDrive() {
-  if (!isSignedIn() || !driveFileId) return;
+async function doSaveToDrive() {
+  sheetId = (DB.settings || {}).sheetId || sheetId;
+  if (!isSignedIn() || !sheetId) return;
   updateSyncStatus('syncing', 'Gemmer...');
-  gapi.client.request({
-    path: 'https://www.googleapis.com/upload/drive/v3/files/' + driveFileId,
-    method: 'PATCH',
-    params: {uploadType: 'media'},
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(DB)
-  }).then(function() {
+  try {
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId: sheetId,
+      range: SHEET_CELL,
+      valueInputOption: 'RAW',
+      resource: { values: [[JSON.stringify(DB)]] }
+    });
     lastSyncTime = new Date();
     updateSyncStatus('ok', 'Gemt ' + fmtTime(lastSyncTime));
-  }).catch(function() { updateSyncStatus('error', 'Gem fejlede – prøv igen'); });
+  } catch(e) {
+    updateSyncStatus('error', 'Gem fejlede – prøv igen');
+  }
 }
 
-function fmtTime(d) { return d.toLocaleTimeString('da-DK', {hour: '2-digit', minute: '2-digit'}); }
+function fmtTime(d) { return d.toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' }); }
 
 function updateSyncStatus(state, msg) {
   const el = document.getElementById('sync-status-text');
@@ -655,90 +645,34 @@ function updateSyncStatus(state, msg) {
   if (typeof updateLoginWarning === 'function') updateLoginWarning();
 }
 
-// ── DRIVE VERSIONSHISTORIK ──
+// ── SHEET VERSIONS (gemmer ikke rigtige versioner, men viser sidste gem-tid) ──
 async function driveListRevisions() {
-  if (!isSignedIn() || !driveFileId) {
-    showToast('Log ind på Google Drive først', 3000, true);
+  if (!isSignedIn() || !sheetId) {
+    showToast('Log ind på Google først', 3000, true);
     return;
   }
+  // Med Sheets har vi ikke versionshistorik via API på samme måde —
+  // vis i stedet info om sheetet og link til at åbne det
   const modal = document.getElementById('game-modal');
   const content = document.getElementById('game-modal-content');
-  content.innerHTML = '<div style="text-align:center;padding:40px">⏳ Henter versioner...</div>';
   modal.classList.add('open');
 
-  try {
-    const resp = await gapi.client.request({
-      path: 'https://www.googleapis.com/drive/v3/files/' + driveFileId + '/revisions',
-      params: { fields: 'revisions(id,modifiedTime,size)', pageSize: 30 }
-    });
-    const revs = (resp.result.revisions || []).reverse(); // nyeste først
-    if (!revs.length) {
-      content.innerHTML = '<div style="padding:20px"><div style="color:var(--gold)">Ingen versioner fundet.<br><br>Drive gemmer kun versioner i ca. 30 dage for appDataFolder-filer.</div><br><button class="btn btn-ghost btn-sm" onclick="closeModal(\'game-modal\')">Luk</button></div>';
-      return;
-    }
-
-    let h = '<div class="flex-between" style="margin-bottom:12px">';
-    h += '<div class="modal-title" style="margin-bottom:0">🕐 Drive versionshistorik</div>';
-    h += '<button class="btn-x" onclick="closeModal(\'game-modal\')">✕</button></div>';
-    h += '<div style="font-size:12px;color:var(--muted);margin-bottom:14px">Vælg en version at gendanne. Din nuværende data laves til en lokal backup først.</div>';
-
-    revs.forEach(r => {
-      const d = new Date(r.modifiedTime);
-      const label = d.toLocaleString('da-DK', {
-        day: '2-digit', month: '2-digit', year: 'numeric',
-        hour: '2-digit', minute: '2-digit'
-      });
-      const kb = r.size ? Math.round(r.size / 1024) + ' KB' : '';
-      const isTarget = d >= new Date('2026-03-13T00:00:00') && d <= new Date('2026-03-13T01:30:00');
-      h += '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:6px;border-radius:8px;border:1px solid ' + (isTarget ? 'rgba(46,204,113,.5)' : 'var(--border)') + ';background:' + (isTarget ? 'rgba(46,204,113,.07)' : 'rgba(255,255,255,.03)') + '">';
-      h += '<div style="flex:1"><div style="font-size:13px;font-weight:600">' + label + (isTarget ? ' <span style="color:var(--green);font-size:11px">← sandsynligvis denne</span>' : '') + '</div>';
-      if (kb) h += '<div style="font-size:11px;color:var(--muted)">' + kb + '</div>';
-      h += '</div>';
-      h += '<button class="btn btn-ajax btn-sm" onclick="driveRestoreRevision(\'' + r.id + '\',\'' + label + '\')">Gendan</button>';
-      h += '</div>';
-    });
-
-    h += '<div style="margin-top:14px"><button class="btn btn-ghost btn-sm" style="width:100%" onclick="closeModal(\'game-modal\')">Annuller</button></div>';
-    content.innerHTML = h;
-  } catch(e) {
-    content.innerHTML = '<div style="padding:20px"><div style="color:var(--ajax-red)">Fejl: ' + e.message + '</div><br><button class="btn btn-ghost btn-sm" onclick="closeModal(\'game-modal\')">Luk</button></div>';
+  const sheetUrl = 'https://docs.google.com/spreadsheets/d/' + sheetId;
+  let h = '<div class="flex-between" style="margin-bottom:12px">';
+  h += '<div class="modal-title" style="margin-bottom:0">📊 Google Sheet</div>';
+  h += '<button class="btn-x" onclick="closeModal(\'game-modal\')">✕</button></div>';
+  h += '<div style="font-size:13px;color:var(--muted);margin-bottom:16px">Data gemmes i Google Sheets. Du kan se og redigere data direkte i sheetet.</div>';
+  if (lastSyncTime) {
+    h += '<div style="margin-bottom:14px;font-size:13px">Sidst synkroniseret: <strong>' + lastSyncTime.toLocaleString('da-DK') + '</strong></div>';
   }
+  h += '<a href="' + sheetUrl + '" target="_blank" class="btn btn-ajax" style="display:block;text-align:center;text-decoration:none;margin-bottom:8px">📊 Åbn Google Sheet</a>';
+  h += '<div style="font-size:11px;color:var(--muted);margin-bottom:14px">Google Sheets gemmer automatisk versionshistorik — åbn sheetet og brug Filer → Versionshistorik for at gendanne.</div>';
+  h += '<button class="btn btn-ghost btn-sm" style="width:100%" onclick="closeModal(\'game-modal\')">Luk</button>';
+  content.innerHTML = h;
 }
 
-async function driveRestoreRevision(revId, label) {
-  if (!confirm('Gendan version fra ' + label + '?\n\nDine nuværende data downloades som backup først.')) return;
-
-  // Download nuværende data som backup
-  try {
-    const blob = new Blob([JSON.stringify(DB, null, 2)], {type: 'application/json'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'ajax-holdstyr-backup-' + new Date().toISOString().slice(0,16).replace('T','-') + '.json';
-    a.click();
-  } catch(e) {}
-
-  const content = document.getElementById('game-modal-content');
-  content.innerHTML = '<div style="text-align:center;padding:40px">⏳ Henter gammel version...</div>';
-
-  try {
-    const resp = await gapi.client.request({
-      path: 'https://www.googleapis.com/drive/v3/files/' + driveFileId + '/revisions/' + revId,
-      params: { alt: 'media' }
-    });
-    const data = typeof resp.result === 'string' ? JSON.parse(resp.result) : resp.result;
-    if (!data || !data.games || !data.players) throw new Error('Ugyldigt format i den valgte version');
-
-    DB = data;
-    localStorage.setItem('ajax_holdstyr_v5', JSON.stringify(DB));
-    // Gem den gendannede version til Drive
-    doSaveToDrive();
-    closeModal('game-modal');
-    renderGames(); renderCoaches(); renderTeamConfig();
-    showToast('✓ Data gendannet fra ' + label);
-  } catch(e) {
-    content.innerHTML = '<div style="padding:20px"><div style="color:var(--ajax-red)">Fejl ved hentning: ' + e.message + '</div><br><button class="btn btn-ghost btn-sm" onclick="closeModal(\'game-modal\')">Luk</button></div>';
-  }
-}
+// Ikke relevant for Sheets — beholdt for kompatibilitet
+async function driveRestoreRevision() {}
 
 
 let DB = loadData();
@@ -770,6 +704,46 @@ function updateLoginWarning() {
   // Vis kun bjælken når GIS er klar (ellers kan driveLogin() ikke køre)
   el.style.display = (isSignedIn() || !gisReady) ? 'none' : 'block';
 }
+
+// ── GOOGLE SHEETS SETTINGS ──
+function renderSheetSettings() {
+  const input = document.getElementById('sheet-id-input');
+  const link = document.getElementById('sheet-link');
+  const status = document.getElementById('sheet-status');
+  if (!input) return;
+  const id = (DB.settings || {}).sheetId || '';
+  input.value = id;
+  if (id) {
+    link.href = 'https://docs.google.com/spreadsheets/d/' + id;
+    link.style.display = 'inline-flex';
+    status.textContent = '✓ Sheet ID konfigureret';
+    status.style.color = 'var(--green)';
+  } else {
+    link.style.display = 'none';
+    status.textContent = 'Indsæt Sheet ID for at aktivere delt sync';
+    status.style.color = 'var(--muted)';
+  }
+}
+
+function sheetIdInputChanged() {
+  const val = (document.getElementById('sheet-id-input').value || '').trim();
+  const link = document.getElementById('sheet-link');
+  if (link) {
+    link.href = val ? 'https://docs.google.com/spreadsheets/d/' + val : '#';
+    link.style.display = val ? 'inline-flex' : 'none';
+  }
+}
+
+function saveSheetId() {
+  const val = (document.getElementById('sheet-id-input').value || '').trim();
+  if (!DB.settings) DB.settings = {};
+  DB.settings.sheetId = val;
+  sheetId = val; // update global in drive_sync
+  save();
+  renderSheetSettings();
+  showToast(val ? 'Sheet ID gemt ✓' : 'Sheet ID fjernet');
+}
+
 function resetToSeed() {
   if (!confirm('Nulstil alle data til original import?')) return;
   localStorage.removeItem('ajax_holdstyr_v5');
@@ -2406,7 +2380,7 @@ function hsError(msg) {
     + '<button class="btn btn-ghost btn-sm" onclick="closeModal(\'hs-modal\')">Luk</button></div>';
 }
 
-window.addEventListener('load',function(){initDriveSync();hsInit();renderCoaches();renderTeamConfig();updateLoginWarning();});
+window.addEventListener('load',function(){initDriveSync();hsInit();renderCoaches();renderTeamConfig();renderSheetSettings();updateLoginWarning();});
 </script>
 </body>
 </html>
