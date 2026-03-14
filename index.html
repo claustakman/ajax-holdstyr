@@ -910,14 +910,17 @@ function renderGames() {
     h += resultBadge;
     h += '</div>';
     h += '<div class="game-meta" style="margin-top:6px">';
-    const displayCount = (g.status === 'done' && g.playerStatus && Object.keys(g.playerStatus).length)
-      ? Object.values(g.playerStatus).filter(s => s !== 'cancelled').length
-      : players.length;
+    // Brug altid players.length som opstilling — playerStatus påvirker kun afbud-badge
+    const displayCount = players.length;
+    const cancelCount2 = (g.status === 'done' && g.playerStatus)
+      ? Object.values(g.playerStatus).filter(s => s === 'cancelled').length
+      : 0;
     // Double-booking badge: check if any player on this team is also in another game same day
     const doubleBooked = players.filter(p => getBookedOnDate(g.date, g.id, team).has(p.name));
     h += '<span class="badge badge-muted">👕 ' + displayCount + '</span>';
     if (doubleBooked.length) h += '<span class="badge" style="background:rgba(245,166,35,.2);color:#F5A623;border:1px solid rgba(245,166,35,.4)">⚠️ ' + doubleBooked.length + ' dobbelt</span>';
-    if (cancelCount) h += '<span class="badge badge-warn">❌ ' + cancelCount + '</span>';
+    const shownCancelCount = g.status === 'done' ? cancelCount2 : cancelCount;
+    if (shownCancelCount) h += '<span class="badge badge-warn">❌ ' + shownCancelCount + '</span>';
     const coaches = (isB ? g.coachesB : g.coachesC) || [];
     if (coaches.length) h += '<span class="badge" style="background:rgba(255,255,255,.05);color:var(--muted);border:1px solid var(--border)">👔 ' + coaches.join(', ') + '</span>';
     if (hasMotm) h += '<span class="badge badge-star">⭐ ' + hasMotm + '</span>';
