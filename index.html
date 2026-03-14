@@ -469,7 +469,7 @@ function clearFilters(){
   renderGames();
 }
 // ── GOOGLE SHEETS SYNC ──
-const CLIENT_ID = '493912601923-33roknfvvqpnr3qc8jot5qt5f83b3lbn.apps.googleusercontent.com';
+const CLIENT_ID = '298754319065-u3g88urugnh73so5requ30hmkeji71u8.apps.googleusercontent.com';
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
 const SHEET_CELL = 'Data!A1';
 
@@ -552,9 +552,10 @@ function maybeEnableSync() {
           showLoggedIn();
         }).catch(function(e) {
           clearTimeout(syncTimeout);
+          console.error('Sync error:', e);
           sessionStorage.removeItem('gapi_token');
           gapi.client.setToken(null);
-          updateSyncStatus('idle', 'Ikke logget ind');
+          updateSyncStatus('error', 'Fejl: ' + (e.message || JSON.stringify(e)));
         });
         return;
       }
