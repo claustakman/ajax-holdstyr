@@ -1807,7 +1807,8 @@ let hsShowAll   = false;
 
 // Filter: activities with "-" in name (e.g. "Ajax - HIK 4")
 function hsIsMatch(a) {
-  return (a.name || a.title || '').includes('-');
+  const name = (a.name || a.title || '');
+  return name.includes('-') && /ajax/i.test(name);
 }
 
 function hsInit() {
