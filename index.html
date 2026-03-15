@@ -308,6 +308,7 @@ input, textarea, select { font-size: 16px !important; } /* prevent iOS zoom */
   <div class="sync-dot sync-idle" id="sync-dot"></div>
   <div class="sync-status"><span id="sync-status-text">Indlæser Google API...</span></div>
   <button class="sync-btn sync-btn-manual" id="sync-manual-btn" onclick="doSaveToDrive()">↑ Gem nu</button>
+  <button class="sync-btn sync-btn-manual" id="sync-fetch-btn" onclick="loadFromKV()">↓ Hent</button>
   <button class="sync-btn sync-btn-manual" id="sync-revisions-btn" onclick="driveListRevisions()">☁️ Info</button>
   <!-- stubs til bagudkompatibilitet -->
   <button id="sync-login-btn" style="display:none" disabled></button>
@@ -499,11 +500,8 @@ function renderSyncBar() {
 // Kaldes når Worker URL ændres i Opsætning
 function onWorkerUrlChanged(url) {
   kvWorkerUrl = url || null;
-  if (kvWorkerUrl) {
-    loadFromKV();
-  } else {
-    updateSyncStatus('idle', 'Ingen Worker URL konfigureret');
-  }
+  updateSyncStatus(kvWorkerUrl ? 'ok' : 'idle',
+    kvWorkerUrl ? 'Worker URL gemt — tryk ↑ Gem nu for at synkronisere' : 'Ingen Worker URL konfigureret');
 }
 
 async function loadFromKV() {
@@ -525,7 +523,13 @@ async function loadFromKV() {
     }
     const remote = JSON.parse(text);
     if (!remote.games || !remote.players) throw new Error('Ugyldigt format');
+    // Bevar lokale indstillinger som ikke gemmes i KV
+    const localToken = (DB.settings || {}).appToken || '';
+    const localWorkerUrl = (DB.settings || {}).hsWorkerUrl || kvWorkerUrl || '';
     DB = remote;
+    if (!DB.settings) DB.settings = {};
+    DB.settings.appToken = localToken;
+    DB.settings.hsWorkerUrl = localWorkerUrl;
     if (typeof hsInit === 'function') hsInit();
     localStorage.setItem('ajax_holdstyr_v5', JSON.stringify(DB));
     lastSyncTime = new Date();
@@ -553,10 +557,16 @@ async function doSaveToDrive() {
   updateSyncStatus('syncing', 'Gemmer...');
   try {
     const token = (DB.settings || {}).appToken || '';
+    // Strip lokale indstillinger fra KV-backup (password og Worker URL gemmes kun lokalt)
+    const dbForKV = JSON.parse(JSON.stringify(DB));
+    if (dbForKV.settings) {
+      delete dbForKV.settings.appToken;
+      delete dbForKV.settings.hsWorkerUrl;
+    }
     const resp = await fetch(kvWorkerUrl + '/db', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Token': token },
-      body: JSON.stringify(DB)
+      body: JSON.stringify(dbForKV)
     });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     lastSyncTime = new Date();
