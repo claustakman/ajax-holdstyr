@@ -307,13 +307,11 @@ input, textarea, select { font-size: 16px !important; } /* prevent iOS zoom */
   <div class="sync-bar" id="sync-bar">
   <div class="sync-dot sync-idle" id="sync-dot"></div>
   <div class="sync-status"><span id="sync-status-text">Indlæser Google API...</span></div>
-  <button class="sync-btn sync-btn-login" id="sync-login-btn" onclick="driveLogin()" disabled>
-    <svg width="14" height="14" viewBox="0 0 24 24"><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-    Log ind med Google
-  </button>
-  <button class="sync-btn sync-btn-manual" id="sync-manual-btn" onclick="doSaveToDrive()" style="display:none">↑ Gem nu</button>
-  <button class="sync-btn sync-btn-manual" id="sync-revisions-btn" onclick="driveListRevisions()" style="display:none">🕐 Gendan</button>
-  <button class="sync-btn sync-btn-logout" id="sync-logout-btn" onclick="driveLogout()" style="display:none">Log ud</button>
+  <button class="sync-btn sync-btn-manual" id="sync-manual-btn" onclick="doSaveToDrive()">↑ Gem nu</button>
+  <button class="sync-btn sync-btn-manual" id="sync-revisions-btn" onclick="driveListRevisions()">☁️ Info</button>
+  <!-- stubs til bagudkompatibilitet -->
+  <button id="sync-login-btn" style="display:none" disabled></button>
+  <button id="sync-logout-btn" style="display:none"></button>
 </div>
   <div class="filter-bar">
     <div class="filter-row">
@@ -404,18 +402,7 @@ input, textarea, select { font-size: 16px !important; } /* prevent iOS zoom */
 <!-- EKSPORT -->
 <div id="page-eksport" class="page">
   <div class="page-title">Opsætning</div>
-  <div class="card" id="sheet-settings">
-    <div class="card-title">📊 Google Sheets sync</div>
-    <div class="field">
-      <label>Sheet ID <span style="font-size:10px;color:var(--muted);font-weight:400">(fra URL: docs.google.com/spreadsheets/d/<strong>ID</strong>/edit)</span></label>
-      <input type="text" class="inline-input" id="sheet-id-input" placeholder="fx 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms" oninput="sheetIdInputChanged()">
-    </div>
-    <div style="display:flex;gap:8px;margin-top:8px">
-      <button class="btn btn-ajax" style="flex:1" onclick="saveSheetId()">💾 Gem Sheet ID</button>
-      <a id="sheet-link" href="#" target="_blank" class="btn btn-ghost" style="flex:0 0 auto;text-decoration:none;display:none">📊 Åbn</a>
-    </div>
-    <div style="margin-top:8px;font-size:12px;color:var(--muted)" id="sheet-status"></div>
-  </div>
+
   <div class="card" id="hs-settings"></div>
   <div class="card" id="team-config-card">
     <div class="card-title">⚽ Holdkonfiguration</div>
@@ -468,196 +455,112 @@ function clearFilters(){
   const sg=document.getElementById('sort-games');if(sg)sg.value='date-desc';
   renderGames();
 }
-// ── GOOGLE SHEETS SYNC ──
-const CLIENT_ID = '298754319065-u3g88urugnh73so5requ30hmkeji71u8.apps.googleusercontent.com';
-const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
-const SHEET_CELL = 'A1'; // Bruger første fane uanset navn
+// ── CLOUDFLARE KV SYNC ──
+// Data gemmes i Cloudflare KV via Worker — ingen Google login nødvendigt
 
-let tokenClient = null;
-let gapiReady = false;
-let gisReady = false;
+let kvSyncTimer = null;
 let lastSyncTime = null;
-let syncDebounceTimer = null;
-let sheetId = null;
+let kvWorkerUrl = null;
+let isSyncing = false;
 
 function initDriveSync() {
-  const gapiScript = document.createElement('script');
-  gapiScript.src = 'https://apis.google.com/js/api.js';
-  gapiScript.onload = function() {
-    gapi.load('client', function() {
-      // Brug gapi.client.load direkte — mere pålideligt end init med discoveryDocs
-      gapi.client.load('https://sheets.googleapis.com/$discovery/rest?version=v4').then(function() {
-        gapiReady = true;
-        maybeEnableSync();
-      }).catch(function(e) {
-        console.error('Sheets API load failed:', e);
-        updateSyncStatus('error', 'Google Sheets API kunne ikke indlæses');
-      });
-    });
-  };
-  document.head.appendChild(gapiScript);
-
-  const gisScript = document.createElement('script');
-  gisScript.src = 'https://accounts.google.com/gsi/client';
-  gisScript.onload = function() {
-    tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: CLIENT_ID,
-      scope: SCOPES,
-      callback: function(response) {
-        if (response.error) {
-          updateSyncStatus('error', 'Login fejlede: ' + response.error);
-          return;
-        }
-        try { sessionStorage.setItem('gapi_token', JSON.stringify(response)); } catch(e) {}
-        if (!(DB.settings || {}).sheetId) {
-          updateSyncStatus('idle', 'Indtast Sheet ID i Opsætning');
-          return;
-        }
-        updateSyncStatus('syncing', 'Henter data...');
-        loadFromSheet().catch(function(e) {
-          updateSyncStatus('error', 'Fejl: ' + e.message);
-        });
-      }
-    });
-    gisReady = true;
-    maybeEnableSync();
-    if (typeof updateLoginWarning === 'function') updateLoginWarning();
-  };
-  document.head.appendChild(gisScript);
-}
-
-function maybeEnableSync() {
-  if (gapiReady && gisReady) {
-    document.getElementById('sync-login-btn').disabled = false;
-    sheetId = (DB.settings || {}).sheetId || null;
-    try {
-      const saved = sessionStorage.getItem('gapi_token');
-      if (saved) {
-        const tok = JSON.parse(saved);
-        gapi.client.setToken(tok);
-        sheetId = (DB.settings || {}).sheetId || null;
-        if (!sheetId) {
-          updateSyncStatus('idle', 'Indtast Sheet ID i Opsætning');
-          return;
-        }
-        updateSyncStatus('syncing', 'Genopretter forbindelse...');
-        // Timeout: hvis loadFromSheet hænger mere end 8 sek, giv op
-        const syncTimeout = setTimeout(function() {
-          sessionStorage.removeItem('gapi_token');
-          gapi.client.setToken(null);
-          updateSyncStatus('idle', 'Ikke logget ind — prøv igen');
-        }, 8000);
-        loadFromSheet().then(function() {
-          clearTimeout(syncTimeout);
-          showLoggedIn();
-        }).catch(function(e) {
-          clearTimeout(syncTimeout);
-          console.error('Sync error:', e);
-          sessionStorage.removeItem('gapi_token');
-          gapi.client.setToken(null);
-          updateSyncStatus('error', 'Fejl: ' + (e.message || JSON.stringify(e)));
-        });
-        return;
-      }
-    } catch(e) {}
-    updateSyncStatus('idle', (DB.settings||{}).sheetId ? 'Ikke logget ind' : 'Indtast Sheet ID i Opsætning');
+  // Hent Worker URL fra settings
+  kvWorkerUrl = (DB.settings || {}).hsWorkerUrl || null;
+  renderSyncBar();
+  if (kvWorkerUrl) {
+    loadFromKV();
   }
 }
 
-function driveLogin() {
-  if (!gapiReady || !gisReady) { updateSyncStatus('error', 'Indlæser Google API...'); return; }
-  if (!sheetId) {
-    showToast('Indtast Sheet ID i Opsætning først', 3000, true);
-    if (typeof showPage === 'function') showPage('eksport');
-    return;
-  }
-  tokenClient.requestAccessToken({ prompt: 'consent' });
+function renderSyncBar() {
+  updateSyncStatus(kvWorkerUrl ? 'idle' : 'idle',
+    kvWorkerUrl ? 'Forbinder...' : 'Indtast Worker URL i Opsætning for at aktivere sync');
 }
 
-function driveLogout() {
+// Kaldes når Worker URL ændres i Opsætning
+function onWorkerUrlChanged(url) {
+  kvWorkerUrl = url || null;
+  if (kvWorkerUrl) {
+    loadFromKV();
+  } else {
+    updateSyncStatus('idle', 'Ingen Worker URL konfigureret');
+  }
+}
+
+async function loadFromKV() {
+  if (!kvWorkerUrl) return;
+  updateSyncStatus('syncing', 'Henter data...');
   try {
-    const token = gapi.client.getToken();
-    if (token) { google.accounts.oauth2.revoke(token.access_token); gapi.client.setToken(null); }
-  } catch(e) {}
-  lastSyncTime = null;
-  try { sessionStorage.removeItem('gapi_token'); } catch(e) {}
-  updateSyncStatus('idle', 'Ikke logget ind');
-  document.getElementById('sync-login-btn').style.display = 'inline-flex';
-  document.getElementById('sync-logout-btn').style.display = 'none';
-  document.getElementById('sync-manual-btn').style.display = 'none';
-  document.getElementById('sync-revisions-btn').style.display = 'none';
-  showToast('Logget ud af Google');
-}
-
-function isSignedIn() {
-  try { const token = gapi && gapi.client && gapi.client.getToken(); return !!(token && token.access_token); } catch(e) { return false; }
-}
-
-function showLoggedIn() {
-  updateSyncStatus('ok', 'Synkroniseret ' + fmtTime(new Date()));
-  document.getElementById('sync-login-btn').style.display = 'none';
-  document.getElementById('sync-logout-btn').style.display = 'inline-flex';
-  document.getElementById('sync-manual-btn').style.display = 'inline-flex';
-  document.getElementById('sync-revisions-btn').style.display = 'inline-flex';
-}
-
-async function loadFromSheet() {
-  sheetId = (DB.settings || {}).sheetId || sheetId;
-  if (!sheetId) throw new Error('Intet Sheet ID');
-  const resp = await gapi.client.sheets.spreadsheets.values.get({
-    spreadsheetId: sheetId,
-    range: SHEET_CELL
-  });
-  const val = resp.result.values && resp.result.values[0] && resp.result.values[0][0];
-  if (!val) {
-    // Sheet er tomt — gem nuværende DB
-    await doSaveToDrive();
-    showLoggedIn();
-    showToast('✓ Nyt sheet initialiseret');
-    return;
-  }
-  try {
-    const remote = JSON.parse(val);
-    if (!remote || !remote.games || !remote.players) throw new Error('Ugyldigt format');
+    const token = (DB.settings || {}).appToken || '';
+    const resp = await fetch(kvWorkerUrl + '/db', {
+      headers: { 'Accept': 'application/json', 'X-Token': token }
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const text = await resp.text();
+    if (!text || text === '{}') {
+      // KV er tomt — gem nuværende DB
+      await doSaveToDrive();
+      updateSyncStatus('ok', 'Initialiseret ✓');
+      showToast('✓ Data gemt til Cloudflare KV');
+      return;
+    }
+    const remote = JSON.parse(text);
+    if (!remote.games || !remote.players) throw new Error('Ugyldigt format');
     DB = remote;
     if (typeof hsInit === 'function') hsInit();
     localStorage.setItem('ajax_holdstyr_v5', JSON.stringify(DB));
     lastSyncTime = new Date();
-    showLoggedIn();
+    updateSyncStatus('ok', 'Synkroniseret ' + fmtTime(lastSyncTime));
     renderGames();
     if (typeof renderCoaches === 'function') renderCoaches();
     if (typeof renderTeamConfig === 'function') renderTeamConfig();
-    showToast('✓ Data hentet fra Google Sheets');
+    if (typeof renderSheetSettings === 'function') renderSheetSettings();
+    showToast('✓ Data hentet fra Cloudflare');
   } catch(e) {
-    throw new Error('Parse fejl: ' + e.message);
+    updateSyncStatus('error', 'Fejl: ' + e.message);
   }
 }
 
 function saveToDrive() {
-  if (!isSignedIn() || !sheetId) return;
-  clearTimeout(syncDebounceTimer);
-  syncDebounceTimer = setTimeout(doSaveToDrive, 1500);
+  if (!kvWorkerUrl) return;
+  clearTimeout(kvSyncTimer);
+  kvSyncTimer = setTimeout(doSaveToDrive, 1500);
 }
 
 async function doSaveToDrive() {
-  sheetId = (DB.settings || {}).sheetId || sheetId;
-  if (!isSignedIn() || !sheetId) return;
+  if (!kvWorkerUrl) return;
+  if (isSyncing) return;
+  isSyncing = true;
   updateSyncStatus('syncing', 'Gemmer...');
   try {
-    await gapi.client.sheets.spreadsheets.values.update({
-      spreadsheetId: sheetId,
-      range: SHEET_CELL,
-      valueInputOption: 'RAW',
-      resource: { values: [[JSON.stringify(DB)]] }
+    const token = (DB.settings || {}).appToken || '';
+    const resp = await fetch(kvWorkerUrl + '/db', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Token': token },
+      body: JSON.stringify(DB)
     });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
     lastSyncTime = new Date();
     updateSyncStatus('ok', 'Gemt ' + fmtTime(lastSyncTime));
   } catch(e) {
-    updateSyncStatus('error', 'Gem fejlede – prøv igen');
+    updateSyncStatus('error', 'Gem fejlede: ' + e.message);
+  } finally {
+    isSyncing = false;
   }
 }
 
-function fmtTime(d) { return d.toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' }); }
+// Manuel sync knap
+function manualSync() {
+  loadFromKV();
+}
+
+function isSignedIn() {
+  return !!kvWorkerUrl;
+}
+
+function fmtTime(d) {
+  return d.toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' });
+}
 
 function updateSyncStatus(state, msg) {
   const el = document.getElementById('sync-status-text');
@@ -668,33 +571,23 @@ function updateSyncStatus(state, msg) {
   if (typeof updateLoginWarning === 'function') updateLoginWarning();
 }
 
-// ── SHEET VERSIONS (gemmer ikke rigtige versioner, men viser sidste gem-tid) ──
+// Ikke relevante Google-funktioner — beholdt som stubs så eksisterende kald ikke fejler
+function driveLogin() { loadFromKV(); }
+function driveLogout() {}
 async function driveListRevisions() {
-  if (!isSignedIn() || !sheetId) {
-    showToast('Log ind på Google først', 3000, true);
-    return;
-  }
-  // Med Sheets har vi ikke versionshistorik via API på samme måde —
-  // vis i stedet info om sheetet og link til at åbne det
+  if (!kvWorkerUrl) { showToast('Worker URL ikke konfigureret', 2000, true); return; }
   const modal = document.getElementById('game-modal');
   const content = document.getElementById('game-modal-content');
   modal.classList.add('open');
-
-  const sheetUrl = 'https://docs.google.com/spreadsheets/d/' + sheetId;
-  let h = '<div class="flex-between" style="margin-bottom:12px">';
-  h += '<div class="modal-title" style="margin-bottom:0">📊 Google Sheet</div>';
-  h += '<button class="btn-x" onclick="closeModal(\'game-modal\')">✕</button></div>';
-  h += '<div style="font-size:13px;color:var(--muted);margin-bottom:16px">Data gemmes i Google Sheets. Du kan se og redigere data direkte i sheetet.</div>';
-  if (lastSyncTime) {
-    h += '<div style="margin-bottom:14px;font-size:13px">Sidst synkroniseret: <strong>' + lastSyncTime.toLocaleString('da-DK') + '</strong></div>';
-  }
-  h += '<a href="' + sheetUrl + '" target="_blank" class="btn btn-ajax" style="display:block;text-align:center;text-decoration:none;margin-bottom:8px">📊 Åbn Google Sheet</a>';
-  h += '<div style="font-size:11px;color:var(--muted);margin-bottom:14px">Google Sheets gemmer automatisk versionshistorik — åbn sheetet og brug Filer → Versionshistorik for at gendanne.</div>';
-  h += '<button class="btn btn-ghost btn-sm" style="width:100%" onclick="closeModal(\'game-modal\')">Luk</button>';
-  content.innerHTML = h;
+  const t = lastSyncTime ? lastSyncTime.toLocaleString('da-DK') : 'aldrig';
+  content.innerHTML = '<div class="flex-between" style="margin-bottom:12px">'
+    + '<div class="modal-title" style="margin-bottom:0">☁️ Cloudflare KV Sync</div>'
+    + '<button class="btn-x" onclick="closeModal(\'game-modal\')">✕</button></div>'
+    + '<div style="font-size:13px;color:var(--muted);margin-bottom:14px">Data gemmes i Cloudflare KV via din Worker.</div>'
+    + '<div style="margin-bottom:14px;font-size:13px">Sidst synkroniseret: <strong>' + t + '</strong></div>'
+    + '<button class="btn btn-ajax" style="width:100%;margin-bottom:8px" onclick="loadFromKV();closeModal(\'game-modal\')">🔄 Synkroniser nu</button>'
+    + '<button class="btn btn-ghost btn-sm" style="width:100%" onclick="closeModal(\'game-modal\')">Luk</button>';
 }
-
-// Ikke relevant for Sheets — beholdt for kompatibilitet
 async function driveRestoreRevision() {}
 
 
@@ -724,58 +617,21 @@ function save() {
 function updateLoginWarning() {
   const el = document.getElementById('login-warning');
   if (!el) return;
-  if (isSignedIn() || !gisReady) { el.style.display = 'none'; return; }
-  const hasSheet = !!(DB.settings && DB.settings.sheetId);
-  if (!hasSheet) {
-    el.textContent = '⚙️ Gå til Opsætning og indtast Google Sheets ID for at aktivere sync';
+  if (isSignedIn()) { el.style.display = 'none'; return; }
+  const hasWorker = !!(DB.settings && DB.settings.hsWorkerUrl);
+  if (!hasWorker) {
+    el.textContent = '⚙️ Gå til Opsætning og indtast Worker URL for at aktivere sync';
     el.style.background = '#1a3a5c';
-    el.onclick = function() { showPage('eksport'); renderTeamConfig(); renderSheetSettings(); };
+    el.onclick = function() { showPage('eksport'); renderTeamConfig(); };
   } else {
-    el.textContent = '⚠️ Ikke logget på Google Sheets — ændringer gemmes kun lokalt. Tryk her for at logge ind.';
+    el.textContent = '⚠️ Ikke forbundet til Cloudflare — ændringer gemmes kun lokalt. Tryk her for at synkronisere.';
     el.style.background = '';
-    el.onclick = driveLogin;
+    el.onclick = loadFromKV;
   }
   el.style.display = 'block';
 }
 
-// ── GOOGLE SHEETS SETTINGS ──
-function renderSheetSettings() {
-  const input = document.getElementById('sheet-id-input');
-  const link = document.getElementById('sheet-link');
-  const status = document.getElementById('sheet-status');
-  if (!input) return;
-  const id = (DB.settings || {}).sheetId || '';
-  input.value = id;
-  if (id) {
-    link.href = 'https://docs.google.com/spreadsheets/d/' + id;
-    link.style.display = 'inline-flex';
-    status.textContent = '✓ Sheet ID konfigureret';
-    status.style.color = 'var(--green)';
-  } else {
-    link.style.display = 'none';
-    status.textContent = 'Indsæt Sheet ID for at aktivere delt sync';
-    status.style.color = 'var(--muted)';
-  }
-}
-
-function sheetIdInputChanged() {
-  const val = (document.getElementById('sheet-id-input').value || '').trim();
-  const link = document.getElementById('sheet-link');
-  if (link) {
-    link.href = val ? 'https://docs.google.com/spreadsheets/d/' + val : '#';
-    link.style.display = val ? 'inline-flex' : 'none';
-  }
-}
-
-function saveSheetId() {
-  const val = (document.getElementById('sheet-id-input').value || '').trim();
-  if (!DB.settings) DB.settings = {};
-  DB.settings.sheetId = val;
-  sheetId = val; // update global in drive_sync
-  save();
-  renderSheetSettings();
-  showToast(val ? 'Sheet ID gemt ✓' : 'Sheet ID fjernet');
-}
+function renderSheetSettings() {} // removed - using KV
 
 function resetToSeed() {
   if (!confirm('Nulstil alle data til original import?')) return;
@@ -1934,17 +1790,23 @@ function hsInit() {
 
 function hsSaveWorkerUrl() {
   const val = (document.getElementById('hs-worker-url').value || '').trim().replace(/\/$/, '');
+  const tokenEl = document.getElementById('app-token-input');
   if (!DB.settings) DB.settings = {};
   DB.settings.hsWorkerUrl = val;
+  DB.settings.appToken = tokenEl ? tokenEl.value.trim() : (DB.settings.appToken || '');
   hsWorkerUrl = val;
   save();
-  showToast('Worker URL gemt ✓');
+  showToast('Gemt ✓');
   renderHoldsportSection();
+  if (typeof onWorkerUrlChanged === 'function') onWorkerUrlChanged(val);
 }
 
 async function hsFetch(path) {
   if (!hsWorkerUrl) throw new Error('Worker URL ikke konfigureret');
-  const res = await fetch(hsWorkerUrl + path, { headers: { 'Accept': 'application/json' } });
+  const token = (DB.settings || {}).appToken || '';
+  const res = await fetch(hsWorkerUrl + path, {
+    headers: { 'Accept': 'application/json', 'X-Token': token }
+  });
   if (!res.ok) throw new Error('HTTP ' + res.status);
   return res.json();
 }
@@ -2382,12 +2244,15 @@ function renderHoldsportSection() {
   const el = document.getElementById('hs-settings');
   if (!el) return;
   const url = (DB.settings || {}).hsWorkerUrl || '';
-  let h = '<div class="card-title">🔗 Holdsport opsætning</div>';
-  h += '<div class="field"><label>Cloudflare Worker URL</label>';
+  const token = (DB.settings || {}).appToken || '';
+  let h = '<div class="card-title">☁️ Cloudflare opsætning</div>';
+  h += '<div class="field"><label>Worker URL</label>';
   h += '<input type="url" id="hs-worker-url" class="inline-input" value="' + url + '" placeholder="https://holdsport-proxy.DITNAVN.workers.dev"></div>';
-  h += '<button class="btn btn-ajax btn-sm" style="width:100%" onclick="hsSaveWorkerUrl()">💾 Gem URL</button>';
+  h += '<div class="field" style="margin-top:8px"><label>Adgangskode <span style="font-size:10px;color:var(--muted);font-weight:400">(APP_TOKEN i Cloudflare)</span></label>';
+  h += '<input type="password" id="app-token-input" class="inline-input" value="' + token + '" placeholder="Valgfri — efterlad tom hvis ingen token"></div>';
+  h += '<button class="btn btn-ajax btn-sm" style="width:100%;margin-top:4px" onclick="hsSaveWorkerUrl()">💾 Gem</button>';
   h += '<div style="margin-top:8px;font-size:12px;color:' + (url ? 'var(--green)' : 'var(--muted)') + '">';
-  h += url ? '✓ Worker konfigureret' : 'Indsæt din Cloudflare Worker URL for at aktivere import';
+  h += url ? '✓ Worker konfigureret' + (token ? ' · 🔒 Adgangskode sat' : ' · ⚠️ Ingen adgangskode') : 'Indsæt din Cloudflare Worker URL';
   h += '</div>';
   el.innerHTML = h;
 }
@@ -2413,7 +2278,7 @@ function hsError(msg) {
     + '<button class="btn btn-ghost btn-sm" onclick="closeModal(\'hs-modal\')">Luk</button></div>';
 }
 
-window.addEventListener('load',function(){initDriveSync();hsInit();renderCoaches();renderTeamConfig();renderSheetSettings();updateLoginWarning();});
+window.addEventListener('load',function(){initDriveSync();hsInit();renderCoaches();renderTeamConfig();updateLoginWarning();});
 </script>
 </body>
 </html>
