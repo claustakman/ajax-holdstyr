@@ -478,8 +478,11 @@ function initDriveSync() {
       const savedDB = JSON.parse(saved);
       kvWorkerUrl = (savedDB.settings || {}).kvWorkerUrl || null;
       if (!DB.settings) DB.settings = {};
-      DB.settings.appToken = (savedDB.settings || {}).appToken || '';
+      // Gendan alle lokale indstillinger fra localStorage
+      DB.settings.appToken   = (savedDB.settings || {}).appToken   || '';
       DB.settings.kvWorkerUrl = kvWorkerUrl || '';
+      DB.settings.hsWorkerUrl = (savedDB.settings || {}).hsWorkerUrl || '';
+      DB.settings.hsToken    = (savedDB.settings || {}).hsToken    || '';
     } else {
       kvWorkerUrl = (DB.settings || {}).kvWorkerUrl || null;
     }
@@ -532,12 +535,16 @@ async function loadFromKV() {
       throw new Error('Ugyldigt format — KV indeholder: ' + Object.keys(remote).join(', '));
     }
     // Bevar lokale indstillinger som ikke gemmes i KV
-    const localToken = (DB.settings || {}).appToken || '';
-    const localWorkerUrl = (DB.settings || {}).kvWorkerUrl || kvWorkerUrl || '';
+    const localToken      = (DB.settings || {}).appToken    || '';
+    const localKvUrl      = (DB.settings || {}).kvWorkerUrl || kvWorkerUrl || '';
+    const localHsUrl      = (DB.settings || {}).hsWorkerUrl || '';
+    const localHsToken    = (DB.settings || {}).hsToken     || '';
     DB = remote;
     if (!DB.settings) DB.settings = {};
-    DB.settings.appToken = localToken;
-    DB.settings.kvWorkerUrl = localWorkerUrl;
+    DB.settings.appToken    = localToken;
+    DB.settings.kvWorkerUrl = localKvUrl;
+    DB.settings.hsWorkerUrl = localHsUrl;
+    DB.settings.hsToken     = localHsToken;
     if (typeof hsInit === 'function') hsInit();
     localStorage.setItem('ajax_holdstyr_v5', JSON.stringify(DB));
     kvSynced = true;
@@ -580,7 +587,9 @@ async function doSaveToDrive() {
     const dbForKV = JSON.parse(JSON.stringify(DB));
     if (dbForKV.settings) {
       delete dbForKV.settings.appToken;
+      delete dbForKV.settings.kvWorkerUrl;
       delete dbForKV.settings.hsWorkerUrl;
+      delete dbForKV.settings.hsToken;
     }
     const resp = await fetch(kvWorkerUrl + '/db', {
       method: 'POST',
