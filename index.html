@@ -1843,6 +1843,8 @@ function hsSaveWorkerUrl() {
   DB.settings.kvWorkerUrl = kvVal;
   DB.settings.hsWorkerUrl = hsVal;
   DB.settings.appToken = tokenEl ? tokenEl.value.trim() : (DB.settings.appToken || '');
+  const hsTokenEl = document.getElementById('hs-token-input');
+  DB.settings.hsToken = hsTokenEl ? hsTokenEl.value.trim() : (DB.settings.hsToken || '');
   hsWorkerUrl = hsVal;
   save();
   showToast('Gemt ✓');
@@ -1852,7 +1854,7 @@ function hsSaveWorkerUrl() {
 
 async function hsFetch(path) {
   if (!hsWorkerUrl) throw new Error('Worker URL ikke konfigureret');
-  const token = (DB.settings || {}).appToken || '';
+  const token = (DB.settings || {}).hsToken || (DB.settings || {}).appToken || '';
   const res = await fetch(hsWorkerUrl + path, {
     headers: { 'Accept': 'application/json', 'X-Token': token }
   });
@@ -2287,14 +2289,20 @@ function renderHoldsportSection() {
   h += '<div class="field" style="margin-top:8px"><label>Holdsport Worker URL <span style="font-size:10px;color:var(--muted);font-weight:400">(kamp import)</span></label>';
   h += '<input type="url" id="hs-worker-url" class="inline-input" value="' + hsUrl + '" placeholder="https://holdsport-proxy.DITNAVN.workers.dev"></div>';
 
-  h += '<div class="field" style="margin-top:8px"><label>Adgangskode <span style="font-size:10px;color:var(--muted);font-weight:400">(APP_TOKEN — deles af begge workers)</span></label>';
+  h += '<div class="field" style="margin-top:8px"><label>KV adgangskode <span style="font-size:10px;color:var(--muted);font-weight:400">(APP_TOKEN på KV Worker)</span></label>';
   h += '<input type="password" id="app-token-input" class="inline-input" value="' + token + '" placeholder="Valgfri"></div>';
+
+  const hsToken = (DB.settings || {}).hsToken || '';
+  h += '<div class="field" style="margin-top:8px"><label>Holdsport adgangskode <span style="font-size:10px;color:var(--muted);font-weight:400">(APP_TOKEN på Holdsport Worker)</span></label>';
+  h += '<input type="password" id="hs-token-input" class="inline-input" value="' + hsToken + '" placeholder="Valgfri"></div>';
 
   h += '<button class="btn btn-ajax btn-sm" style="width:100%;margin-top:8px" onclick="hsSaveWorkerUrl()">💾 Gem</button>';
   h += '<div style="margin-top:8px;font-size:12px;color:var(--muted);display:flex;gap:12px">';
   h += '<span style="color:' + (kvUrl ? 'var(--green)' : 'var(--muted)') + '">' + (kvUrl ? '✓ KV' : '✗ KV') + '</span>';
   h += '<span style="color:' + (hsUrl ? 'var(--green)' : 'var(--muted)') + '">' + (hsUrl ? '✓ Holdsport' : '✗ Holdsport') + '</span>';
-  h += (token ? '<span style="color:var(--green)">🔒 Token</span>' : '<span>⚠️ Ingen token</span>');
+  h += (token ? '<span style="color:var(--green)">🔒 KV token</span>' : '<span style="color:var(--gold)">⚠️ Ingen KV token</span>');
+  const hsTokenStatus = (DB.settings || {}).hsToken || '';
+  h += (hsTokenStatus ? '<span style="color:var(--green)">🔒 HS token</span>' : '<span style="color:var(--gold)">⚠️ Ingen HS token</span>');
   h += '</div>';
   el.innerHTML = h;
 }
