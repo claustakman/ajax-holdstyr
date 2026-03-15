@@ -465,26 +465,26 @@ function clearFilters(){
 // Data gemmes i Cloudflare KV via Worker — ingen Google login nødvendigt
 
 let kvSyncTimer = null;
+let kvSynced = false; // sættes til true efter første vellykkede KV-hentning
 let lastSyncTime = null;
 let kvWorkerUrl = null;
 let isSyncing = false;
 
 function initDriveSync() {
-  // Hent Worker URL + token fra localStorage direkte (DB kan være seed på dette tidspunkt)
+  // Hent KV Worker URL + token fra localStorage direkte (DB kan være seed på dette tidspunkt)
   try {
     const saved = localStorage.getItem('ajax_holdstyr_v5');
     if (saved) {
       const savedDB = JSON.parse(saved);
-      kvWorkerUrl = (savedDB.settings || {}).hsWorkerUrl || null;
-      // Sæt token i DB.settings så fetch-kald kan bruge den
+      kvWorkerUrl = (savedDB.settings || {}).kvWorkerUrl || null;
       if (!DB.settings) DB.settings = {};
       DB.settings.appToken = (savedDB.settings || {}).appToken || '';
-      DB.settings.hsWorkerUrl = kvWorkerUrl || '';
+      DB.settings.kvWorkerUrl = kvWorkerUrl || '';
     } else {
-      kvWorkerUrl = (DB.settings || {}).hsWorkerUrl || null;
+      kvWorkerUrl = (DB.settings || {}).kvWorkerUrl || null;
     }
   } catch(e) {
-    kvWorkerUrl = (DB.settings || {}).hsWorkerUrl || null;
+    kvWorkerUrl = (DB.settings || {}).kvWorkerUrl || null;
   }
   renderSyncBar();
   if (kvWorkerUrl) {
@@ -498,15 +498,18 @@ function renderSyncBar() {
 }
 
 // Kaldes når Worker URL ændres i Opsætning
-function onWorkerUrlChanged(url) {
+function onKVWorkerUrlChanged(url) {
   kvWorkerUrl = url || null;
   updateSyncStatus(kvWorkerUrl ? 'ok' : 'idle',
-    kvWorkerUrl ? 'Worker URL gemt — tryk ↑ Gem nu for at synkronisere' : 'Ingen Worker URL konfigureret');
+    kvWorkerUrl ? 'KV Worker URL gemt — tryk ↑ Gem nu for at synkronisere' : 'Ingen KV Worker URL konfigureret');
 }
+// Alias for bagudkompatibilitet
+function onWorkerUrlChanged(url) { onKVWorkerUrlChanged(url); }
 
 async function loadFromKV() {
   if (!kvWorkerUrl) return;
   updateSyncStatus('syncing', 'Henter data...');
+
   try {
     const token = (DB.settings || {}).appToken || '';
     const resp = await fetch(kvWorkerUrl + '/db', {
@@ -514,24 +517,30 @@ async function loadFromKV() {
     });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const text = await resp.text();
-    if (!text || text === '{}') {
+    if (!text || text === '{}' || text === '') {
       // KV er tomt — gem nuværende DB
+      kvSynced = true;
       await doSaveToDrive();
       updateSyncStatus('ok', 'Initialiseret ✓');
       showToast('✓ Data gemt til Cloudflare KV');
       return;
     }
-    const remote = JSON.parse(text);
-    if (!remote.games || !remote.players) throw new Error('Ugyldigt format');
+    let remote;
+    try { remote = JSON.parse(text); } catch(e) { throw new Error('JSON parse fejl: ' + e.message); }
+    if (!remote.games || !remote.players) {
+      // KV har data men i forkert format — vis hvad der er
+      throw new Error('Ugyldigt format — KV indeholder: ' + Object.keys(remote).join(', '));
+    }
     // Bevar lokale indstillinger som ikke gemmes i KV
     const localToken = (DB.settings || {}).appToken || '';
-    const localWorkerUrl = (DB.settings || {}).hsWorkerUrl || kvWorkerUrl || '';
+    const localWorkerUrl = (DB.settings || {}).kvWorkerUrl || kvWorkerUrl || '';
     DB = remote;
     if (!DB.settings) DB.settings = {};
     DB.settings.appToken = localToken;
-    DB.settings.hsWorkerUrl = localWorkerUrl;
+    DB.settings.kvWorkerUrl = localWorkerUrl;
     if (typeof hsInit === 'function') hsInit();
     localStorage.setItem('ajax_holdstyr_v5', JSON.stringify(DB));
+    kvSynced = true;
     lastSyncTime = new Date();
     updateSyncStatus('ok', 'Synkroniseret ' + fmtTime(lastSyncTime));
     renderGames();
@@ -550,9 +559,19 @@ function saveToDrive() {
   kvSyncTimer = setTimeout(doSaveToDrive, 1500);
 }
 
+function isSeedData() {
+  // Tjek om DB indeholder seed-data (ingen rigtige kampe hentet fra KV endnu)
+  if (!kvSynced && DB.games && DB.games.every(g => g.id === 'g_demo1' || g.id === 'g_demo2')) return true;
+  return false;
+}
+
 async function doSaveToDrive() {
   if (!kvWorkerUrl) return;
   if (isSyncing) return;
+  if (isSeedData()) {
+    showToast('⚠️ Hent data fra sky først (↓ Hent) inden du gemmer', 3500, true);
+    return;
+  }
   isSyncing = true;
   updateSyncStatus('syncing', 'Gemmer...');
   try {
@@ -1817,16 +1836,18 @@ function hsInit() {
 }
 
 function hsSaveWorkerUrl() {
-  const val = (document.getElementById('hs-worker-url').value || '').trim().replace(/\/$/, '');
+  const kvVal = (document.getElementById('kv-worker-url')?.value || '').trim().replace(/\/$/, '');
+  const hsVal = (document.getElementById('hs-worker-url')?.value || '').trim().replace(/\/$/, '');
   const tokenEl = document.getElementById('app-token-input');
   if (!DB.settings) DB.settings = {};
-  DB.settings.hsWorkerUrl = val;
+  DB.settings.kvWorkerUrl = kvVal;
+  DB.settings.hsWorkerUrl = hsVal;
   DB.settings.appToken = tokenEl ? tokenEl.value.trim() : (DB.settings.appToken || '');
-  hsWorkerUrl = val;
+  hsWorkerUrl = hsVal;
   save();
   showToast('Gemt ✓');
   renderHoldsportSection();
-  if (typeof onWorkerUrlChanged === 'function') onWorkerUrlChanged(val);
+  if (typeof onKVWorkerUrlChanged === 'function') onKVWorkerUrlChanged(kvVal);
 }
 
 async function hsFetch(path) {
@@ -2255,16 +2276,25 @@ function hsConfirmAttendees() {
 function renderHoldsportSection() {
   const el = document.getElementById('hs-settings');
   if (!el) return;
-  const url = (DB.settings || {}).hsWorkerUrl || '';
+  const kvUrl = (DB.settings || {}).kvWorkerUrl || '';
+  const hsUrl = (DB.settings || {}).hsWorkerUrl || '';
   const token = (DB.settings || {}).appToken || '';
   let h = '<div class="card-title">☁️ Cloudflare opsætning</div>';
-  h += '<div class="field"><label>Worker URL</label>';
-  h += '<input type="url" id="hs-worker-url" class="inline-input" value="' + url + '" placeholder="https://holdsport-proxy.DITNAVN.workers.dev"></div>';
-  h += '<div class="field" style="margin-top:8px"><label>Adgangskode <span style="font-size:10px;color:var(--muted);font-weight:400">(APP_TOKEN i Cloudflare)</span></label>';
-  h += '<input type="password" id="app-token-input" class="inline-input" value="' + token + '" placeholder="Valgfri — efterlad tom hvis ingen token"></div>';
-  h += '<button class="btn btn-ajax btn-sm" style="width:100%;margin-top:4px" onclick="hsSaveWorkerUrl()">💾 Gem</button>';
-  h += '<div style="margin-top:8px;font-size:12px;color:' + (url ? 'var(--green)' : 'var(--muted)') + '">';
-  h += url ? '✓ Worker konfigureret' + (token ? ' · 🔒 Adgangskode sat' : ' · ⚠️ Ingen adgangskode') : 'Indsæt din Cloudflare Worker URL';
+
+  h += '<div class="field"><label>KV Worker URL <span style="font-size:10px;color:var(--muted);font-weight:400">(data sync)</span></label>';
+  h += '<input type="url" id="kv-worker-url" class="inline-input" value="' + kvUrl + '" placeholder="https://kv-worker.DITNAVN.workers.dev"></div>';
+
+  h += '<div class="field" style="margin-top:8px"><label>Holdsport Worker URL <span style="font-size:10px;color:var(--muted);font-weight:400">(kamp import)</span></label>';
+  h += '<input type="url" id="hs-worker-url" class="inline-input" value="' + hsUrl + '" placeholder="https://holdsport-proxy.DITNAVN.workers.dev"></div>';
+
+  h += '<div class="field" style="margin-top:8px"><label>Adgangskode <span style="font-size:10px;color:var(--muted);font-weight:400">(APP_TOKEN — deles af begge workers)</span></label>';
+  h += '<input type="password" id="app-token-input" class="inline-input" value="' + token + '" placeholder="Valgfri"></div>';
+
+  h += '<button class="btn btn-ajax btn-sm" style="width:100%;margin-top:8px" onclick="hsSaveWorkerUrl()">💾 Gem</button>';
+  h += '<div style="margin-top:8px;font-size:12px;color:var(--muted);display:flex;gap:12px">';
+  h += '<span style="color:' + (kvUrl ? 'var(--green)' : 'var(--muted)') + '">' + (kvUrl ? '✓ KV' : '✗ KV') + '</span>';
+  h += '<span style="color:' + (hsUrl ? 'var(--green)' : 'var(--muted)') + '">' + (hsUrl ? '✓ Holdsport' : '✗ Holdsport') + '</span>';
+  h += (token ? '<span style="color:var(--green)">🔒 Token</span>' : '<span>⚠️ Ingen token</span>');
   h += '</div>';
   el.innerHTML = h;
 }
