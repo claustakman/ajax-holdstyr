@@ -469,8 +469,22 @@ let kvWorkerUrl = null;
 let isSyncing = false;
 
 function initDriveSync() {
-  // Hent Worker URL fra settings
-  kvWorkerUrl = (DB.settings || {}).hsWorkerUrl || null;
+  // Hent Worker URL + token fra localStorage direkte (DB kan være seed på dette tidspunkt)
+  try {
+    const saved = localStorage.getItem('ajax_holdstyr_v5');
+    if (saved) {
+      const savedDB = JSON.parse(saved);
+      kvWorkerUrl = (savedDB.settings || {}).hsWorkerUrl || null;
+      // Sæt token i DB.settings så fetch-kald kan bruge den
+      if (!DB.settings) DB.settings = {};
+      DB.settings.appToken = (savedDB.settings || {}).appToken || '';
+      DB.settings.hsWorkerUrl = kvWorkerUrl || '';
+    } else {
+      kvWorkerUrl = (DB.settings || {}).hsWorkerUrl || null;
+    }
+  } catch(e) {
+    kvWorkerUrl = (DB.settings || {}).hsWorkerUrl || null;
+  }
   renderSyncBar();
   if (kvWorkerUrl) {
     loadFromKV();
