@@ -213,7 +213,7 @@ main { padding: 16px; padding-bottom: max(80px, calc(env(safe-area-inset-bottom)
 /* Filter bar */
 .filter-bar { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px; }
 .filter-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.filter-select { background: rgba(255,255,255,.05); border: 1px solid var(--border2); border-radius: 8px; color: var(--text); padding: 7px 10px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 13px; outline: none; cursor: pointer; min-width: 130px; }
+.filter-select { background: rgba(255,255,255,.05); border: 1px solid var(--border2); border-radius: 8px; color: var(--text); padding: 7px 10px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 13px; outline: none; cursor: pointer; }
 .filter-select:focus { border-color: var(--ajax-red); }
 .filter-select option { background: var(--card); }
 .filter-input { background: rgba(255,255,255,.05); border: 1px solid var(--border2); border-radius: 8px; color: var(--text); padding: 7px 10px; font-family: 'Barlow', sans-serif; font-size: 13px; outline: none; flex: 1; min-width: 120px; }
@@ -250,7 +250,7 @@ main { padding: 16px; padding-bottom: max(80px, calc(env(safe-area-inset-bottom)
 /* Filter bar */
 .filter-bar{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:12px;display:flex;flex-direction:column;gap:8px}
 .filter-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.filter-select{background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:7px 10px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;outline:none;cursor:pointer;min-width:130px}.filter-select:focus{border-color:var(--ajax-red)}.filter-select option{background:var(--card)}
+.filter-select{background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:7px 10px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;outline:none;cursor:pointer;}.filter-select:focus{border-color:var(--ajax-red)}.filter-select option{background:var(--card)}
 .filter-input{background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:7px 10px;font-family:'Barlow',sans-serif;font-size:13px;outline:none;flex:1;min-width:100px}.filter-input:focus{border-color:var(--ajax-red)}
 /* GAS table (goals/assists/saves) */
 .gas-table{border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-top:4px}
@@ -316,15 +316,15 @@ input, textarea, select { font-size: 16px !important; } /* prevent iOS zoom */
 </div>
   <div class="filter-bar">
     <div class="filter-row">
-      <select id="filter-status" onchange="renderGames()" class="filter-select">
+      <select id="filter-status" onchange="renderGames()" class="filter-select" style="flex:1;min-width:0">
         <option value="all">Alle kampe</option>
         <option value="planned">Planlagte</option>
         <option value="done">Spillede</option>
       </select>
-      <select id="filter-team" onchange="renderGames()" class="filter-select">
+      <select id="filter-team" onchange="renderGames()" class="filter-select" style="flex:1;min-width:0">
         <option value="all">Alle hold</option><option value="b">Hold B</option><option value="c">Hold C</option>
       </select>
-      <select id="sort-games" onchange="renderGames()" class="filter-select">
+      <select id="sort-games" onchange="renderGames()" class="filter-select" style="flex:1;min-width:0">
         <option value="date-desc">Dato ↓ nyeste</option>
         <option value="date-asc">Dato ↑ ældste</option>
         <option value="opp-asc">Modstander A–Z</option>
