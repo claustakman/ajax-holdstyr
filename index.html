@@ -707,9 +707,12 @@ function showPage(page) {
   if (page === 'statistik') renderStats();
 }
 
-function fmtDate(d) {
+function fmtDate(d, time) {
   if (!d) return '?';
-  try { return new Date(d + 'T12:00:00').toLocaleDateString('da-DK', {weekday:'short', day:'numeric', month:'short', year:'numeric'}); }
+  try {
+    const dateStr = new Date(d + 'T12:00:00').toLocaleDateString('da-DK', {weekday:'short', day:'numeric', month:'short', year:'numeric'});
+    return time ? dateStr + ' · ' + time : dateStr;
+  }
   catch(e) { return d; }
 }
 function playerLabel(nick) {
@@ -826,7 +829,7 @@ function renderGames() {
       }
     }
     let h = '<div class="game-card ' + status + '" onclick="openGame(\'' + g.id + '\',\'' + team + '\')">';
-    h += '<div class="game-date" style="display:flex;align-items:center;gap:6px">' + fmtDate(g.date) + ' ';
+    h += '<div class="game-date" style="display:flex;align-items:center;gap:6px">' + fmtDate(g.date, g.time) + ' ';
     h += homeAwayBadge + ' ';
     h += status === 'done' ? '<span style="color:var(--green)">✓ Spillet</span>' : '<span style="color:var(--gold)">● Planlagt</span>';
     h += '</div>';
@@ -883,7 +886,7 @@ function buildGameDetailHTML(g, team) {
   h += '<div><div class="modal-title" style="margin-bottom:0">' + (isHome ? opp : 'vs ' + cleanOppDisplay(opp)) + '</div>';
   h += '<div style="font-size:11px;color:var(--muted);margin-top:1px">' + (isHome ? '🏠 Hjemmekamp' : '✈️ Udebane') + '</div></div></div>';
   h += '<button class="btn-x" onclick="closeModal(\'game-modal\')">✕</button></div>';
-  h += '<div style="font-size:13px;color:var(--muted);margin-bottom:10px">' + fmtDate(g.date);
+  h += '<div style="font-size:13px;color:var(--muted);margin-bottom:10px">' + fmtDate(g.date, g.time);
   if (g.notes) h += ' · <span style="color:var(--gold)">📌 ' + g.notes + '</span>';
   h += '</div>';
 
@@ -1002,7 +1005,7 @@ function createNewGame() {
   const id = 'g' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
   const today = new Date().toISOString().slice(0,10);
   DB.games.push({
-    id, date: today, hsId: null,
+    id, date: today, time: null, hsId: null,
     team1: { opponent: null, players: [] },
     team2: { opponent: null, players: [] },
     cancellations: [], benched: [], notes: '', status: 'planned',
@@ -1025,6 +1028,7 @@ function openEditMeta(id, team, isNew) {
   h += '<div class="modal-title" style="margin-bottom:0">' + title + '</div>';
   h += '<button class="btn-x" onclick="' + onX + '">✕</button></div>';
   h += '<div class="field"><label>Dato</label><input type="date" class="inline-input" id="em-date" value="' + g.date + '"></div>';
+  h += '<div class="field"><label>Tidspunkt <span style="font-size:10px;color:var(--muted);font-weight:400">(valgfrit)</span></label><input type="time" class="inline-input" id="em-time" value="' + (g.time||'') + '"></div>';
   if (isNew) {
     h += '<div class="field"><label>Hold</label>';
     h += '<select class="inline-input" id="em-team" style="cursor:pointer">';
@@ -1049,10 +1053,12 @@ function openEditMeta(id, team, isNew) {
 function saveEditMeta(id, team, isNew) {
   const g = DB.games.find(x => x.id === id); if (!g) return;
   const date = document.getElementById('em-date').value;
+  const time = document.getElementById('em-time')?.value || '';
   const opp = document.getElementById('em-opp').value.trim();
   // ha dropdown fjernet — kampnavn angiver hjemme/ude direkte
   const notes = document.getElementById('em-notes').value.trim();
   if (date) g.date = date;
+  g.time = time || null;
   if (notes !== undefined) g.notes = notes;
   // Adjust opponent name to reflect home/away
   const teamData = team === 'b' ? g.team1 : g.team2;
@@ -1179,7 +1185,7 @@ function copyLineupToNew(team, fromGameId) {
   const id = 'g' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
   const today = new Date().toISOString().slice(0,10);
   const newGame = {
-    id, date: today, hsId: null,
+    id, date: today, time: null, hsId: null,
     team1: { opponent: null, players: team === 'b' ? players : [] },
     team2: { opponent: null, players: team === 'c' ? players : [] },
     cancellations: [], benched: [], notes: '', status: 'planned',
@@ -2102,6 +2108,9 @@ function hsImportSelected() {
     const raw  = a.starttime || '';
     const date = raw ? raw.split('T')[0] : null;
     if (!date) return;
+    const time = raw.includes('T') ? raw.split('T')[1].slice(0,5) : null;
+    // Ignorer 00:00 som er standard-placeholder
+    const gameTime = (time && time !== '00:00') ? time : null;
 
     const name = a.name || a.title || '';
     const teamCfg = (DB.settings||{}).teamConfig || [];
@@ -2112,7 +2121,7 @@ function hsImportSelected() {
 
     DB.games.push({
       id: 'g' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
-      date, hsId: String(a.id), hsTeamId: String(a._teamId),
+      date, time: gameTime, hsId: String(a.id), hsTeamId: String(a._teamId),
       team1: { opponent: team !== 'c' ? fmtOpp : null, players: [] },
       team2: { opponent: team === 'c' ? fmtOpp : null, players: [] },
       cancellations: [], benched: [], notes: a.place || '',
