@@ -786,9 +786,10 @@ function renderGames() {
     if (dateTo && g.date > dateTo) return false;
     return true;
   });
+  const dateTimeKey = g => g.date + 'T' + (g.time || '00:00');
   entries.sort((a, b) => {
-    if (sort === 'date-desc') return b.g.date.localeCompare(a.g.date);
-    if (sort === 'date-asc') return a.g.date.localeCompare(b.g.date);
+    if (sort === 'date-desc') return dateTimeKey(b.g).localeCompare(dateTimeKey(a.g));
+    if (sort === 'date-asc') return dateTimeKey(a.g).localeCompare(dateTimeKey(b.g));
     if (sort === 'opp-asc') {
       const oa = (a.team==='b' ? a.g.team1 : a.g.team2).opponent || '';
       const ob = (b.team==='b' ? b.g.team1 : b.g.team2).opponent || '';
@@ -1171,7 +1172,15 @@ function saveReview(gameId, field, val) {
 }
 function markDone(id, team) {
   const g = DB.games.find(x => x.id === id);
-  if (g) { g.status = 'done'; save(); renderGames(); showToast('✓ Spillet'); openGame(id, team); }
+  if (!g) return;
+  if (g.status === 'done') {
+    if (!confirm('Marker kampen som planlagt igen?')) return;
+    g.status = 'planned';
+    save(); renderGames(); showToast('↩ Markeret som planlagt'); openGame(id, team);
+  } else {
+    g.status = 'done';
+    save(); renderGames(); showToast('✓ Spillet'); openGame(id, team);
+  }
 }
 function deleteGame(id, silent) {
   if (!silent && !confirm('Slet denne kamp?')) return;
