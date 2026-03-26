@@ -1029,7 +1029,7 @@ function openEditMeta(id, team, isNew) {
   h += '<div class="modal-title" style="margin-bottom:0">' + title + '</div>';
   h += '<button class="btn-x" onclick="' + onX + '">✕</button></div>';
   h += '<div class="field"><label>Dato</label><input type="date" class="inline-input" id="em-date" value="' + g.date + '"></div>';
-  h += '<div class="field"><label>Tidspunkt <span style="font-size:10px;color:var(--muted);font-weight:400">(valgfrit)</span></label><input type="time" class="inline-input" id="em-time" value="' + (g.time||'') + '"></div>';
+  h += '<div class="field"><label>Tidspunkt <span style="font-size:10px;color:var(--muted);font-weight:400">(valgfrit)</span></label><input type="time" class="inline-input" id="em-time" value="' + (g.time||'') + '" onchange="this.dataset.val=this.value" oninput="this.dataset.val=this.value"></div>';
   if (isNew) {
     h += '<div class="field"><label>Hold</label>';
     h += '<select class="inline-input" id="em-team" style="cursor:pointer">';
@@ -1054,7 +1054,9 @@ function openEditMeta(id, team, isNew) {
 function saveEditMeta(id, team, isNew) {
   const g = DB.games.find(x => x.id === id); if (!g) return;
   const date = document.getElementById('em-date').value;
-  const time = document.getElementById('em-time')?.value || '';
+  const timeEl = document.getElementById('em-time');
+  if (timeEl) timeEl.blur();
+  const time = (timeEl && (timeEl.dataset.val !== undefined ? timeEl.dataset.val : timeEl.value)) || '';
   const opp = document.getElementById('em-opp').value.trim();
   // ha dropdown fjernet — kampnavn angiver hjemme/ude direkte
   const notes = document.getElementById('em-notes').value.trim();
